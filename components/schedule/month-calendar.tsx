@@ -208,8 +208,8 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     return `${fmt(s)} – ${fmt(e)}`
   })()
 
-  function openRequestDialog(date: string, startTime?: string, endTime?: string) {
-    setRequestDate(date)
+  function openRequestDialog(date?: string, startTime?: string, endTime?: string) {
+    setRequestDate(date ?? "")
     setRequestStartTime(startTime)
     setRequestEndTime(endTime)
   }
@@ -290,7 +290,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
               Nová zmena
             </Button>
           ) : (
-            <Button size="sm" variant="outline" onClick={() => openRequestDialog(new Date().toISOString().slice(0, 10))}>
+            <Button size="sm" variant="outline" onClick={() => openRequestDialog()}>
               <Plus className="size-4" />
               Požiadať o zmenu
             </Button>
@@ -671,9 +671,9 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         colleagues={leaveCtx?.colleagues}
       />
       <RequestShiftDialog
-        open={!!requestDate}
+        open={requestDate !== null}
         onOpenChange={(open) => { if (!open) setRequestDate(null) }}
-        date={requestDate ?? ""}
+        date={requestDate || undefined}
         defaultStartTime={requestStartTime}
         defaultEndTime={requestEndTime}
       />

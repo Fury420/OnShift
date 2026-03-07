@@ -5,6 +5,7 @@ import { shifts, user, businessHours, openShiftClaims, shiftRules, shiftExceptio
 import { eq, and, gte, lte, asc, or } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
 import { AdminMonthCalendar, type AdminCalendarDay, type AdminCalendarShift, type AdminOpenShift, type AdminRequestedShift } from "@/components/schedule/admin-month-calendar"
+import { RequestedRulesPanel, type RequestedRuleRow } from "@/components/schedule/requested-rules-panel"
 import { getMonthGrid, toDateStr, formatMonthLabel, shortTime } from "@/lib/week"
 import { expandRules, type ShiftRule, type ShiftException } from "@/lib/expand-rules"
 
@@ -23,7 +24,7 @@ export default async function AdminSchedulePage({
   const endDate = toDateStr(weeks[weeks.length - 1][6])
   const todayStr = toDateStr(new Date())
 
-  const [monthShifts, requestedShifts, pendingClaims, employees, orgBusinessHours, rules, exceptions] = await Promise.all([
+  const [monthShifts, requestedShifts, pendingClaims, employees, orgBusinessHours, rules, exceptions, requestedRulesRaw] = await Promise.all([
     db
       .select({
         id: shifts.id,
@@ -95,6 +96,26 @@ export default async function AdminSchedulePage({
       .select()
       .from(shiftExceptions)
       .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate))),
+
+    // Requested shift rules (from employees)
+    db
+      .select({
+        id: shiftRules.id,
+        userId: shiftRules.userId,
+        userName: user.name,
+        frequency: shiftRules.frequency,
+        days: shiftRules.days,
+        date: shiftRules.date,
+        validFrom: shiftRules.validFrom,
+        validUntil: shiftRules.validUntil,
+        startTime: shiftRules.startTime,
+        endTime: shiftRules.endTime,
+        allDay: shiftRules.allDay,
+        note: shiftRules.note,
+      })
+      .from(shiftRules)
+      .leftJoin(user, eq(shiftRules.userId, user.id))
+      .where(and(eq(shiftRules.organizationId, orgId), eq(shiftRules.status, "requested"))),
   ])
 
   const colorMap = new Map(employees.map((e) => [e.id, { name: e.name, color: e.color ?? "#6b7280" }]))
@@ -155,9 +176,9 @@ export default async function AdminSchedulePage({
           }
         })
 
-      // Rule-based instances
+      // Rule-based instances (exclude open and requested — requested shown in separate panel)
       const ruleShifts: AdminCalendarShift[] = ruleInstances
-        .filter((ri) => ri.date === dateStr && ri.status !== "open")
+        .filter((ri) => ri.date === dateStr && ri.status !== "open" && ri.status !== "requested")
         .map((ri) => {
           const emp = ri.userId ? colorMap.get(ri.userId) : undefined
           return {
@@ -241,11 +262,25 @@ export default async function AdminSchedulePage({
     monthNum === 12 ? `${year + 1}-01` : `${year}-${String(monthNum + 1).padStart(2, "0")}`
 
   const activeEmployees = employees.filter((e) => !e.archivedAt)
-
   const employeeOptions = activeEmployees.map((e) => ({ id: e.id, name: e.name }))
+
+  const requestedRules: RequestedRuleRow[] = (requestedRulesRaw as typeof requestedRulesRaw).map((r) => ({
+    id: r.id,
+    userName: r.userName ?? null,
+    frequency: r.frequency,
+    days: r.days,
+    date: r.date,
+    validFrom: r.validFrom,
+    validUntil: r.validUntil,
+    startTime: r.startTime,
+    endTime: r.endTime,
+    allDay: r.allDay,
+    note: r.note,
+  }))
 
   return (
     <div className="flex flex-col gap-6 w-full">
+      <RequestedRulesPanel rows={requestedRules} />
       <AdminMonthCalendar
         weeks={calendarWeeks}
         employees={employeeOptions}

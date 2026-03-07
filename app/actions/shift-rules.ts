@@ -5,6 +5,7 @@ import { shiftRules, shiftExceptions } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { getSession } from "@/lib/session"
 
 function revalidateSchedule() {
   revalidatePath("/admin/schedule")
@@ -167,6 +168,66 @@ export async function removeException(exceptionId: string) {
   await requireAdmin()
 
   await db.delete(shiftExceptions).where(eq(shiftExceptions.id, exceptionId))
+
+  revalidateSchedule()
+}
+
+// ─── Employee: request shift rule ────────────────────────────────────────────
+
+export async function requestShiftRule(data: {
+  frequency: "once" | "weekly"
+  date?: string
+  days?: string
+  validFrom?: string
+  validUntil?: string
+  startTime?: string
+  endTime?: string
+  allDay: boolean
+  note?: string
+}) {
+  const session = await getSession()
+  if (!session) throw new Error("Nie ste prihlásený")
+  const orgId = await getOrganizationId()
+  const userId = session.user.id
+
+  await db.insert(shiftRules).values({
+    organizationId: orgId,
+    userId,
+    frequency: data.frequency,
+    date: data.frequency === "once" ? (data.date ?? null) : null,
+    days: data.frequency === "weekly" ? (data.days ?? null) : null,
+    dayOfMonth: null,
+    validFrom: data.frequency !== "once" ? (data.validFrom ?? null) : null,
+    validUntil: data.frequency !== "once" ? (data.validUntil ?? null) : null,
+    startTime: data.allDay ? null : (data.startTime ?? null),
+    endTime: data.allDay ? null : (data.endTime ?? null),
+    allDay: data.allDay,
+    note: data.note || null,
+    status: "requested",
+  })
+
+  revalidateSchedule()
+}
+
+// ─── Admin: approve / reject rule request ────────────────────────────────────
+
+export async function approveShiftRuleRequest(id: string) {
+  await requireAdmin()
+  const orgId = await getOrganizationId()
+
+  await db
+    .update(shiftRules)
+    .set({ status: "draft", updatedAt: new Date() })
+    .where(and(eq(shiftRules.id, id), eq(shiftRules.organizationId, orgId)))
+
+  revalidateSchedule()
+}
+
+export async function rejectShiftRuleRequest(id: string) {
+  await requireAdmin()
+  const orgId = await getOrganizationId()
+
+  await db.delete(shiftRules).where(and(eq(shiftRules.id, id), eq(shiftRules.organizationId, orgId)))
 
   revalidateSchedule()
 }
