@@ -165,6 +165,7 @@ export function AdminMonthCalendar({
   const dragRef = useRef<DragState | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const dragMovedRef = useRef(false) // true ak prebehol skutočný drag (nie len klik)
 
   // Drag handlers — these need access to startHour/PAD which are computed in render,
   // so we store them in a ref that's updated each render.
@@ -181,6 +182,7 @@ export function AdminMonthCalendar({
 
   const startDrag = useCallback((date: string, mode: DragMode, clientY: number, shift?: AdminCalendarShift) => {
     setOpenMenuId(null) // close any open dropdown
+    dragMovedRef.current = true // skutočný drag začal
     const col = timelineRef.current?.querySelector(`[data-day-col="${date}"]`) as HTMLElement | null
     if (!col) return
     const rect = col.getBoundingClientRect()
@@ -267,6 +269,16 @@ export function AdminMonthCalendar({
       const drag = dragRef.current
       if (!drag) return
       dragRef.current = null
+
+      // Ak prebehol skutočný drag, pohltíme nasledujúci click event
+      // aby sa dropdown neotvoril po pustení bloku
+      if (dragMovedRef.current) {
+        dragMovedRef.current = false
+        window.addEventListener("click", (e) => {
+          e.stopPropagation()
+          e.preventDefault()
+        }, { capture: true, once: true })
+      }
 
       setDragPreview(prev => {
         if (!prev) return null
