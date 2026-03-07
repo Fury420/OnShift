@@ -67,7 +67,6 @@ export function DatePicker({
             onSelect={(d) => {
               if (d) onChange(toDateStr(d))
             }}
-            numberOfMonths={2}
             fromDate={fromDate}
             locale={sk}
             weekStartsOn={1}
@@ -149,9 +148,20 @@ export function DateRangePicker({
       onChangeTo("")
       selectingRef.current = "to"
     } else {
-      onChangeFrom(range.from ? toDateStr(range.from) : "")
-      onChangeTo(range.to ? toDateStr(range.to) : "")
-      if (range.to) selectingRef.current = "from"
+      const newFrom = range.from ? toDateStr(range.from) : ""
+      const newTo = range.to ? toDateStr(range.to) : ""
+
+      // Dvakrát kliknutý ten istý deň → jednodenný rozsah
+      const sameDay = newFrom && !newTo && from && newFrom === toDateStr(from)
+      if (sameDay) {
+        onChangeFrom(newFrom)
+        onChangeTo(newFrom)
+        selectingRef.current = "from"
+      } else {
+        onChangeFrom(newFrom)
+        onChangeTo(newTo)
+        if (newTo) selectingRef.current = "from"
+      }
     }
   }, [onChangeFrom, onChangeTo, from, to])
 
@@ -183,7 +193,6 @@ export function DateRangePicker({
             mode="range"
             selected={selected}
             onSelect={handleSelect}
-            numberOfMonths={2}
             locale={sk}
             weekStartsOn={1}
             className="p-2 [--cell-size:1.6rem]"
