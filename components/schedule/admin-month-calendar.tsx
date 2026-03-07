@@ -16,7 +16,7 @@ import {
 import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift-dialog"
 import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftClaim, rejectShiftClaim, approveShiftRequest, rejectShiftRequest, updateShift } from "@/app/actions/schedule"
 import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
-import { Check, X } from "lucide-react"
+import { Check, X, Pencil, Eye, EyeOff, Trash2, CalendarX } from "lucide-react"
 import { toast } from "sonner"
 
 export interface AdminCalendarShift {
@@ -916,70 +916,98 @@ export function AdminMonthCalendar({
 
                           if (item._type === "shift") {
                             const shift = item
-                            const menuKey = `timeline-${shift.id}`
                             return (
-                              <DropdownMenu key={shift.id} open={openMenuId === menuKey} onOpenChange={(open) => setOpenMenuId(open ? menuKey : null)}>
-                                <DropdownMenuTrigger asChild>
-                                  <div
-                                    className={cn(
-                                      "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left hover:opacity-80 transition-opacity overflow-hidden cursor-grab group/block pointer-events-auto",
-                                      shift.status === "draft" && "opacity-60",
-                                    )}
-                                    style={{
-                                      top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)`,
-                                      backgroundColor: shift.color + "30",
-                                      borderLeft: `3px ${shift.status === "draft" ? "dashed" : "solid"} ${shift.color}`,
-                                      color: shift.color,
-                                    }}
-                                    onMouseDown={(e) => {
-                                      if (e.button !== 0 || (e.target as HTMLElement).dataset.resizeHandle) return
-                                      handleDragMouseDown(e, day.date, "move", shift)
-                                    }}
-                                  >
-                                    {/* Resize handle top */}
-                                    <div
-                                      data-resize-handle="top"
-                                      className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 group-hover/block:opacity-100 hover:!opacity-100"
-                                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDragMouseDown(e, day.date, "resize-top", shift) }}
-                                    >
-                                      <div className="mx-auto mt-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
-                                    </div>
-                                    <div className="font-semibold truncate leading-tight">{shift.userName}</div>
-                                    <div className="opacity-80 leading-tight text-[10px]">
-                                      {shift.startTime}–{shift.endTime}
-                                      {shift.status === "draft" && " · koncept"}
-                                    </div>
-                                    {shift.note && height > 48 && (
-                                      <div className="opacity-60 truncate mt-0.5 text-[10px]">{shift.note}</div>
-                                    )}
-                                    {/* Resize handle bottom */}
-                                    <div
-                                      data-resize-handle="bottom"
-                                      className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 group-hover/block:opacity-100 hover:!opacity-100"
-                                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDragMouseDown(e, day.date, "resize-bottom", shift) }}
-                                    >
-                                      <div className="mx-auto mb-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
-                                    </div>
-                                  </div>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start">
+                              <div
+                                key={shift.id}
+                                className={cn(
+                                  "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left overflow-hidden cursor-grab group/block pointer-events-auto",
+                                  shift.status === "draft" && "opacity-60",
+                                )}
+                                style={{
+                                  top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)`,
+                                  backgroundColor: shift.color + "30",
+                                  borderLeft: `3px ${shift.status === "draft" ? "dashed" : "solid"} ${shift.color}`,
+                                  color: shift.color,
+                                }}
+                                onMouseDown={(e) => {
+                                  if (e.button !== 0 || (e.target as HTMLElement).dataset.resizeHandle || (e.target as HTMLElement).dataset.actionBtn) return
+                                  handleDragMouseDown(e, day.date, "move", shift)
+                                }}
+                              >
+                                {/* Resize handle top */}
+                                <div
+                                  data-resize-handle="top"
+                                  className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 group-hover/block:opacity-100"
+                                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDragMouseDown(e, day.date, "resize-top", shift) }}
+                                >
+                                  <div className="mx-auto mt-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
+                                </div>
+
+                                {/* Hover action buttons — Tempo style */}
+                                <div className="absolute top-0.5 right-0.5 z-20 hidden group-hover/block:flex gap-0.5 rounded-sm p-0.5" style={{ backgroundColor: shift.color + "40" }}>
                                   {!(shift.isRecurring && shift.status === "published") && (
-                                    <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
+                                    <button
+                                      data-action-btn
+                                      title={shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}
+                                      className="rounded p-0.5 hover:bg-white/30 transition-colors"
+                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                      onClick={(e) => { e.stopPropagation(); openEditRule(shift) }}
+                                    >
+                                      <Pencil className="size-3" />
+                                    </button>
                                   )}
                                   {shift.status !== "open" && (
-                                    <DropdownMenuItem onClick={() => handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId)} disabled={isPending}>
-                                      {shift.status === "draft" ? "Publikovať" : "Zrušiť publikovanie"}
-                                    </DropdownMenuItem>
+                                    <button
+                                      data-action-btn
+                                      title={shift.status === "draft" ? "Publikovať" : "Zrušiť publikovanie"}
+                                      className="rounded p-0.5 hover:bg-white/30 transition-colors"
+                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                      onClick={(e) => { e.stopPropagation(); handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId) }}
+                                    >
+                                      {shift.status === "draft" ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                                    </button>
                                   )}
-                                  <DropdownMenuSeparator />
                                   {shift.isRecurring && (
-                                    <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
+                                    <button
+                                      data-action-btn
+                                      title="Odstrániť túto zmenu"
+                                      className="rounded p-0.5 hover:bg-white/30 transition-colors"
+                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                      onClick={(e) => { e.stopPropagation(); handleSkipInstance(shift.ruleId!, shift.date) }}
+                                    >
+                                      <CalendarX className="size-3" />
+                                    </button>
                                   )}
                                   {!(shift.isRecurring && shift.status === "published") && (
-                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>{shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}</DropdownMenuItem>
+                                    <button
+                                      data-action-btn
+                                      title={shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}
+                                      className="rounded p-0.5 hover:bg-red-400/40 transition-colors"
+                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                      onClick={(e) => { e.stopPropagation(); handleDelete(shift.id, shift.isRule, shift.ruleId) }}
+                                    >
+                                      <Trash2 className="size-3" />
+                                    </button>
                                   )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                </div>
+
+                                <div className="font-semibold truncate leading-tight pr-4">{shift.userName}</div>
+                                <div className="opacity-80 leading-tight text-[10px]">
+                                  {shift.startTime}–{shift.endTime}
+                                  {shift.status === "draft" && " · koncept"}
+                                </div>
+                                {shift.note && height > 48 && (
+                                  <div className="opacity-60 truncate mt-0.5 text-[10px]">{shift.note}</div>
+                                )}
+                                {/* Resize handle bottom */}
+                                <div
+                                  data-resize-handle="bottom"
+                                  className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 group-hover/block:opacity-100"
+                                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDragMouseDown(e, day.date, "resize-bottom", shift) }}
+                                >
+                                  <div className="mx-auto mb-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
+                                </div>
+                              </div>
                             )
                           }
 
