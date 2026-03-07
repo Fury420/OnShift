@@ -57,6 +57,7 @@ export default async function SchedulePage({
         startTime: shifts.startTime,
         endTime: shifts.endTime,
         note: shifts.note,
+        maxClaims: shifts.maxClaims,
       })
       .from(shifts)
       .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, startDate), lte(shifts.date, endDate)))
@@ -128,7 +129,7 @@ export default async function SchedulePage({
   const ruleData: ShiftRule[] = rules.map((r) => ({
     id: r.id, organizationId: r.organizationId, userId: r.userId, frequency: r.frequency,
     date: r.date, days: r.days, dayOfMonth: r.dayOfMonth, validFrom: r.validFrom, validUntil: r.validUntil,
-    startTime: r.startTime, endTime: r.endTime, allDay: r.allDay, note: r.note, status: r.status,
+    startTime: r.startTime, endTime: r.endTime, allDay: r.allDay, maxClaims: r.maxClaims, note: r.note, status: r.status,
   }))
   const exData: ShiftException[] = exceptions.map((e) => ({
     id: e.id, ruleId: e.ruleId, date: e.date, action: e.action,
@@ -191,19 +192,22 @@ export default async function SchedulePage({
       const legacyOpenShifts: OpenShift[] = openMonthShifts
         .filter((s) => s.date === dateStr)
         .map((s) => {
-          const claimsForShift = pendingClaims.filter((c) => c.shiftId === s.id && c.status === "pending")
-          const myClaimId = claimsForShift.find((c) => c.claimedByUserId === session.user.id)?.id
+          const allClaims = pendingClaims.filter((c) => c.shiftId === s.id)
+          const acceptedClaims = allClaims.filter((c) => c.status === "approved")
+          const myClaim = allClaims.find((c) => c.claimedByUserId === session.user.id)
           return {
             id: s.id,
             startTime: shortTime(s.startTime),
             endTime: shortTime(s.endTime),
             note: s.note,
-            claimedByUsers: claimsForShift.map((c) => {
+            maxClaims: s.maxClaims,
+            acceptedCount: acceptedClaims.length,
+            claimedByUsers: acceptedClaims.map((c) => {
               const emp = colorMap.get(c.claimedByUserId)
               return { userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280", claimId: c.id }
             }),
-            myClaimId: myClaimId ?? null,
-            iMayClaim: !myClaimId,
+            myClaimId: myClaim?.id ?? null,
+            iMayClaim: !myClaim,
           }
         })
 
@@ -214,6 +218,8 @@ export default async function SchedulePage({
           startTime: ri.startTime,
           endTime: ri.endTime,
           note: ri.note,
+          maxClaims: ri.maxClaims ?? 1,
+          acceptedCount: 0,
           claimedByUsers: [],
           myClaimId: null,
           iMayClaim: true,

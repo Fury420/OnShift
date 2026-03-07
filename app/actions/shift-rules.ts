@@ -31,6 +31,7 @@ export async function createShiftRule(data: {
   endTime?: string
   allDay: boolean
   note?: string
+  maxClaims?: number
 }) {
   await requireAdmin()
   const orgId = await getOrganizationId()
@@ -48,6 +49,7 @@ export async function createShiftRule(data: {
     endTime: data.allDay ? null : (data.endTime ?? null),
     allDay: data.allDay,
     note: data.note || null,
+    maxClaims: data.maxClaims ?? 1,
     status: data.userId ? "draft" : "open",
   })
 

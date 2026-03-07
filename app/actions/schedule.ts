@@ -197,37 +197,50 @@ export async function claimShift(shiftId: string) {
   const orgId = await getOrganizationId()
   const userId = session.user.id
 
-  // Check shift exists and is open
   const [shift] = await db
-    .select({ id: shifts.id, status: shifts.status, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date })
+    .select({ id: shifts.id, status: shifts.status, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims })
     .from(shifts)
     .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
     .limit(1)
   if (!shift) throw new Error("Zmena nie je dostupná")
 
-  // Check no existing pending claim by this user
+  const approvedClaims = await db
+    .select({ id: openShiftClaims.id })
+    .from(openShiftClaims)
+    .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.status, "approved")))
+  if (approvedClaims.length >= shift.maxClaims) throw new Error("Zmena je už plne obsadená")
+
   const [existingClaim] = await db
     .select({ id: openShiftClaims.id })
     .from(openShiftClaims)
-    .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.claimedByUserId, userId), eq(openShiftClaims.status, "pending")))
+    .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.claimedByUserId, userId)))
     .limit(1)
   if (existingClaim) throw new Error("Už ste sa na túto zmenu prihlásili")
 
-  // Check no shift conflict
   await checkConflict(userId, shift.date, shift.startTime, shift.endTime)
 
   await db.insert(openShiftClaims).values({
     organizationId: orgId,
     shiftId,
     claimedByUserId: userId,
-    status: "pending",
+    status: "approved",
+  })
+
+  // Create a published shift for this user
+  await db.insert(shifts).values({
+    organizationId: orgId,
+    userId,
+    date: shift.date,
+    startTime: shift.startTime,
+    endTime: shift.endTime,
+    status: "published",
   })
 
   revalidatePath("/schedule")
   revalidatePath("/admin/schedule")
 }
 
-export async function claimRuleShift(ruleId: string, date: string, startTime: string, endTime: string) {
+export async function claimRuleShift(ruleId: string, date: string, startTime: string, endTime: string, maxClaims?: number) {
   const session = await getSession()
   if (!session) throw new Error("Nie ste prihlásený")
   const orgId = await getOrganizationId()
@@ -235,20 +248,53 @@ export async function claimRuleShift(ruleId: string, date: string, startTime: st
 
   await checkConflict(userId, date, startTime, endTime)
 
-  const [newShift] = await db.insert(shifts).values({
-    organizationId: orgId,
-    userId: null,
-    date,
-    startTime,
-    endTime,
-    status: "open",
-  }).returning({ id: shifts.id })
+  // Find or create the concrete open shift for this rule+date
+  let [existingShift] = await db
+    .select({ id: shifts.id, maxClaims: shifts.maxClaims })
+    .from(shifts)
+    .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
+    .limit(1)
+
+  if (!existingShift) {
+    const [created] = await db.insert(shifts).values({
+      organizationId: orgId,
+      userId: null,
+      date,
+      startTime,
+      endTime,
+      maxClaims: maxClaims ?? 1,
+      status: "open",
+    }).returning({ id: shifts.id, maxClaims: shifts.maxClaims })
+    existingShift = created
+  }
+
+  const approvedClaims = await db
+    .select({ id: openShiftClaims.id })
+    .from(openShiftClaims)
+    .where(and(eq(openShiftClaims.shiftId, existingShift.id), eq(openShiftClaims.status, "approved")))
+  if (approvedClaims.length >= existingShift.maxClaims) throw new Error("Zmena je už plne obsadená")
+
+  const [alreadyClaimed] = await db
+    .select({ id: openShiftClaims.id })
+    .from(openShiftClaims)
+    .where(and(eq(openShiftClaims.shiftId, existingShift.id), eq(openShiftClaims.claimedByUserId, userId)))
+    .limit(1)
+  if (alreadyClaimed) throw new Error("Už ste sa na túto zmenu prihlásili")
 
   await db.insert(openShiftClaims).values({
     organizationId: orgId,
-    shiftId: newShift.id,
+    shiftId: existingShift.id,
     claimedByUserId: userId,
-    status: "pending",
+    status: "approved",
+  })
+
+  await db.insert(shifts).values({
+    organizationId: orgId,
+    userId,
+    date,
+    startTime,
+    endTime,
+    status: "published",
   })
 
   revalidatePath("/schedule")

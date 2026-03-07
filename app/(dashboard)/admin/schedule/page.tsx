@@ -135,6 +135,7 @@ export default async function AdminSchedulePage({
     startTime: r.startTime,
     endTime: r.endTime,
     allDay: r.allDay,
+    maxClaims: r.maxClaims,
     note: r.note,
     status: r.status,
   }))

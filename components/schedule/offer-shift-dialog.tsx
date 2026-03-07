@@ -42,6 +42,7 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
   const [startTime, setStartTime] = useState("16:00")
   const [endTime, setEndTime] = useState("21:00")
   const [allDay, setAllDay] = useState(true)
+  const [maxClaims, setMaxClaims] = useState(1)
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
@@ -55,6 +56,7 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
       setStartTime(defaultStartTime ?? "16:00")
       setEndTime(defaultEndTime ?? "21:00")
       setAllDay(!defaultStartTime)
+      setMaxClaims(1)
       setError("")
     }
   }, [open, defaultDate, defaultStartTime, defaultEndTime])
@@ -118,6 +120,7 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
           endTime: allDay ? undefined : endTime,
           allDay,
           note: undefined,
+          maxClaims,
         })
         onOpenChange(false)
       } catch (err) {
@@ -219,6 +222,19 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
               </div>
             </div>
           )}
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="offerMaxClaims">Počet miest</Label>
+            <Input
+              id="offerMaxClaims"
+              type="number"
+              min={1}
+              max={20}
+              value={maxClaims}
+              onChange={(e) => setMaxClaims(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-24"
+            />
+          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

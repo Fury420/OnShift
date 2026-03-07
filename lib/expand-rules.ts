@@ -16,6 +16,7 @@ export interface ShiftRule {
   startTime: string | null
   endTime: string | null
   allDay: boolean
+  maxClaims?: number
   note: string | null
   status: "requested" | "draft" | "open" | "published"
 }
@@ -45,6 +46,7 @@ export interface ShiftInstance {
   startTime: string
   endTime: string
   allDay: boolean
+  maxClaims?: number
   note: string | null
   status: "requested" | "draft" | "open" | "published"
   isException: boolean    // true if this instance was modified by an exception
@@ -117,6 +119,7 @@ export function expandRules(
         startTime,
         endTime,
         allDay: rule.allDay,
+        maxClaims: rule.maxClaims,
         note,
         status: rule.status,
         isException: !!ex,

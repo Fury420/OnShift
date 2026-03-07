@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Clock, Plus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
@@ -30,6 +30,8 @@ export interface OpenShift {
   startTime: string
   endTime: string
   note: string | null
+  maxClaims: number
+  acceptedCount: number
   claimedByUsers: { userId: string; userName: string; color: string; claimId: string }[]
   myClaimId: string | null
   iMayClaim: boolean
@@ -233,18 +235,18 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     router.refresh()
   }
 
-  function handleClaim(os: { id: string; startTime: string; endTime: string }) {
+  function handleClaim(os: { id: string; startTime: string; endTime: string; maxClaims?: number }) {
     startTransition(async () => {
       try {
         if (os.id.startsWith("rule:")) {
           const parts = os.id.split(":")
           const ruleId = parts[1]
           const date = parts.slice(2).join(":")
-          await claimRuleShift(ruleId, date, os.startTime, os.endTime)
+          await claimRuleShift(ruleId, date, os.startTime, os.endTime, os.maxClaims)
         } else {
           await claimShift(os.id)
         }
-        toast.success("Prihlásenie odoslané — čaká na schválenie")
+        toast.success("Zmena bola priradená")
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Chyba pri prihlasovaní")
       }
@@ -391,18 +393,32 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         <div className="text-xs text-muted-foreground">{rs.startTime}–{rs.endTime}</div>
                       </div>
                     ))}
-                    {day.openShifts.map((os) => (
-                      <div key={os.id}
-                        className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1 bg-muted/10", os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
-                        onClick={os.iMayClaim && !isPast ? () => handleClaim(os) : undefined}>
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm font-medium text-muted-foreground">Voľná zmena</div>
-                          {os.iMayClaim && !isPast && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
-                          {os.myClaimId && <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="size-3" /> Čaká</span>}
+                    {day.openShifts.map((os) => {
+                      const isFull = os.acceptedCount >= os.maxClaims
+                      const canClaim = os.iMayClaim && !isPast && !isFull
+                      return (
+                        <div key={os.id}
+                          className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1 bg-muted/10", canClaim && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
+                          onClick={canClaim ? () => handleClaim(os) : undefined}>
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              {isFull ? "Obsadená" : "Voľná zmena"}
+                              {os.maxClaims > 1 && <span className="ml-1 text-xs opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
+                            </div>
+                            {canClaim && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
+                            {os.myClaimId && <span className="text-xs text-muted-foreground flex items-center gap-1"><Check className="size-3" /> Prihlásený</span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{os.startTime}–{os.endTime}</div>
+                          {os.claimedByUsers.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {os.claimedByUsers.map((u) => (
+                                <span key={u.claimId} className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: u.color + "20", color: u.color }}>{u.userName.split(" ")[0]}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground">{os.startTime}–{os.endTime}</div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -448,17 +464,21 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         <div className="opacity-70 text-amber-600">{rs.startTime}–{rs.endTime}</div>
                       </div>
                     ))}
-                    {day.openShifts.map((os) => (
-                      <div key={os.id}
-                        className={cn("rounded border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-xs leading-tight bg-background", os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
-                        onClick={os.iMayClaim && !isPast ? () => handleClaim(os) : undefined}>
-                        <div className="flex items-center justify-between gap-0.5">
-                          <span className="truncate text-muted-foreground font-medium">Voľná</span>
-                          {os.myClaimId && <Clock className="size-2.5 text-muted-foreground shrink-0" />}
+                    {day.openShifts.map((os) => {
+                      const isFull = os.acceptedCount >= os.maxClaims
+                      const canClaimGrid = os.iMayClaim && !isPast && !isFull
+                      return (
+                        <div key={os.id}
+                          className={cn("rounded border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-xs leading-tight bg-background", canClaimGrid && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
+                          onClick={canClaimGrid ? () => handleClaim(os) : undefined}>
+                          <div className="flex items-center justify-between gap-0.5">
+                            <span className="truncate text-muted-foreground font-medium">{isFull ? "Obsadená" : "Voľná"}</span>
+                            {os.myClaimId && <Check className="size-2.5 text-green-600 shrink-0" />}
+                          </div>
+                          <div className="opacity-60">{os.startTime}–{os.endTime}</div>
                         </div>
-                        <div className="opacity-60">{os.startTime}–{os.endTime}</div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </>
                 )
                 const canRequest = !isPast && day.isCurrentMonth
@@ -621,20 +641,32 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
                         if (item._type === "open") {
                           const os = item
+                          const isFull = os.acceptedCount >= os.maxClaims
+                          const canClaimTl = os.iMayClaim && !isPast && !isFull
                           return (
                             <div
                               key={os.id}
                               className={cn(
                                 "absolute flex flex-col justify-start rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-1 text-xs bg-muted/10 overflow-hidden pointer-events-auto",
-                                os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors",
+                                canClaimTl && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors",
                               )}
                               style={posStyle}
-                              onClick={os.iMayClaim && !isPast ? () => handleClaim(os) : undefined}
+                              onClick={canClaimTl ? () => handleClaim(os) : undefined}
                             >
-                              <div className="font-medium text-muted-foreground leading-tight">Voľná</div>
+                              <div className="font-medium text-muted-foreground leading-tight">
+                                {isFull ? "Obsadená" : "Voľná"}
+                                {os.maxClaims > 1 && <span className="ml-0.5 opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
+                              </div>
                               <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
-                              {os.iMayClaim && !isPast && <div className="text-primary font-medium text-[10px] mt-0.5">Prihlásiť sa</div>}
-                              {os.myClaimId && <div className="text-muted-foreground flex items-center gap-0.5 text-[10px] mt-0.5"><Clock className="size-2.5" /> Čaká</div>}
+                              {canClaimTl && <div className="text-primary font-medium text-[10px] mt-0.5">Prihlásiť sa</div>}
+                              {os.myClaimId && <div className="text-green-600 flex items-center gap-0.5 text-[10px] mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
+                              {os.claimedByUsers.length > 0 && (
+                                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                  {os.claimedByUsers.map((u) => (
+                                    <span key={u.claimId} className="text-[9px] px-1 rounded-full" style={{ backgroundColor: u.color + "20", color: u.color }}>{u.userName.split(" ")[0]}</span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )
                         }

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum, date, time, uuid, boolean, decimal, unique } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, pgEnum, date, time, uuid, boolean, decimal, unique, integer } from "drizzle-orm/pg-core"
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -136,6 +136,7 @@ export const shifts = pgTable("shifts", {
   date: date("date").notNull(),
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
+  maxClaims: integer("max_claims").notNull().default(1),
   note: text("note"),
   status: shiftStatusEnum("status").notNull().default("draft"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -242,6 +243,7 @@ export const shiftRules = pgTable("shift_rules", {
   endTime: time("end_time"),
   allDay: boolean("all_day").notNull().default(false),
 
+  maxClaims: integer("max_claims").notNull().default(1),
   note: text("note"),
   status: shiftStatusEnum("status").notNull().default("draft"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
