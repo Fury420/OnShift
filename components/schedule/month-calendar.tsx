@@ -284,15 +284,10 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         )}
 
         <div className="flex items-center gap-2">
-          {canCreateShifts ? (
+          {canCreateShifts && (
             <Button size="sm" onClick={() => openCreateDialog()}>
               <Plus className="size-4" />
               Nová zmena
-            </Button>
-          ) : (
-            <Button size="sm" variant="outline" onClick={() => openRequestDialog()}>
-              <Plus className="size-4" />
-              Požiadať o zmenu
             </Button>
           )}
           <div className="flex rounded-md border p-0.5 gap-0.5">
