@@ -94,14 +94,14 @@ export default async function SchedulePage({
       .from(businessHours)
       .where(eq(businessHours.organizationId, orgId)),
 
-    // Fetch published shift rules that overlap with visible range
+    // Fetch published + open shift rules that overlap with visible range
     db
       .select()
       .from(shiftRules)
       .where(
         and(
           eq(shiftRules.organizationId, orgId),
-          eq(shiftRules.status, "published"),
+          or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
           or(
             and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
             and(
@@ -208,7 +208,7 @@ export default async function SchedulePage({
         })
 
       const ruleOpenShifts: OpenShift[] = ruleInstances
-        .filter((ri) => ri.date === dateStr && ri.status === "published" && !ri.userId)
+        .filter((ri) => ri.date === dateStr && (ri.status === "open" || (ri.status === "published" && !ri.userId)))
         .map((ri) => ({
           id: `rule:${ri.ruleId}:${dateStr}`,
           startTime: ri.startTime,
