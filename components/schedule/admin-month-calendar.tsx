@@ -340,7 +340,11 @@ export function AdminMonthCalendar({
   const weekLabel = (() => {
     const s = new Date(currentWeek[0].date + "T12:00:00")
     const e = new Date(currentWeek[6].date + "T12:00:00")
-    const fmt = (d: Date) => d.toLocaleDateString("sk-SK", { day: "numeric", month: "short" })
+    const fmt = (d: Date) => {
+      const day = d.getDate()
+      const mon = d.toLocaleDateString("en-US", { month: "short" })
+      return `${day} ${mon}`
+    }
     return `${fmt(s)} – ${fmt(e)}`
   })()
 
