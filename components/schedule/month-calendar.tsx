@@ -284,8 +284,50 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
   const todayStr = new Date().toISOString().slice(0, 10)
 
+  const nextOpenShift = (() => {
+    for (const week of weeks) {
+      for (const day of week) {
+        if (day.date < todayStr) continue
+        for (const os of day.openShifts) {
+          if (os.acceptedCount < os.maxClaims && os.iMayClaim && !os.myClaimId) {
+            const d = new Date(day.date + "T12:00:00")
+            const label = d.toLocaleDateString("sk-SK", { weekday: "long", day: "numeric", month: "long" })
+            return { ...os, date: day.date, dateLabel: label }
+          }
+        }
+      }
+    }
+    return null
+  })()
+
   return (
     <div className="flex flex-col gap-4 w-full">
+      {/* ── Nearest open shift banner ── */}
+      {!canCreateShifts && nextOpenShift && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors"
+          onClick={() => {
+            const idx = weeks.findIndex((w) => w.some((d) => d.date === nextOpenShift.date))
+            if (idx >= 0) { setWeekIdx(idx); setView("week") }
+          }}
+        >
+          <div className="flex flex-col gap-0.5">
+            <div className="text-sm font-semibold text-primary">Voľná zmena k dispozícii</div>
+            <div className="text-sm text-muted-foreground capitalize">
+              {nextOpenShift.dateLabel} · {nextOpenShift.startTime}–{nextOpenShift.endTime}
+              {nextOpenShift.maxClaims > 1 && ` · ${nextOpenShift.maxClaims - nextOpenShift.acceptedCount} voľ. miest`}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); handleClaim(nextOpenShift) }}
+            disabled={isPending}
+          >
+            Prihlásiť sa
+          </Button>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2">
           {view === "month" ? (
@@ -380,7 +422,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                           style={{ backgroundColor: shift.color + "28", borderLeft: `3px solid ${shift.color}` }}
                           onClick={clickable ? () => openLeave(day, shift) : undefined}>
                           <div className="text-sm font-semibold" style={{ color: shift.color }}>{shift.userName.split(" ")[0]}</div>
-                          <div className="text-xs opacity-75" style={{ color: shift.color }}>{shift.startTime}–{shift.endTime}</div>
+                          <div className="text-sm opacity-75" style={{ color: shift.color }}>{shift.startTime}–{shift.endTime}</div>
                         </div>
                       )
                     })}
@@ -622,7 +664,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             <div
                               key={shift.id}
                               className={cn(
-                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs overflow-hidden pointer-events-auto",
+                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm overflow-hidden pointer-events-auto",
                                 clickable && "cursor-pointer hover:opacity-80 transition-opacity",
                               )}
                               style={{
@@ -634,7 +676,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               onClick={clickable ? () => openLeave(day, shift) : undefined}
                             >
                               <div className="font-semibold truncate leading-tight">{shift.userName}</div>
-                              <div className="opacity-80 leading-tight text-[10px]">{shift.startTime}–{shift.endTime}</div>
+                              <div className="opacity-80 leading-tight text-xs">{shift.startTime}–{shift.endTime}</div>
                             </div>
                           )
                         }
@@ -647,7 +689,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             <div
                               key={os.id}
                               className={cn(
-                                "absolute flex flex-col justify-start rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-1 text-xs bg-muted/10 overflow-hidden pointer-events-auto",
+                                "absolute flex flex-col justify-start rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-1 text-sm bg-muted/10 overflow-hidden pointer-events-auto",
                                 canClaimTl && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors",
                               )}
                               style={posStyle}
@@ -657,13 +699,13 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                 {isFull ? "Obsadená" : "Voľná"}
                                 {os.maxClaims > 1 && <span className="ml-0.5 opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                               </div>
-                              <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
-                              {canClaimTl && <div className="text-primary font-medium text-[10px] mt-0.5">Prihlásiť sa</div>}
-                              {os.myClaimId && <div className="text-green-600 flex items-center gap-0.5 text-[10px] mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
+                              <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
+                              {canClaimTl && <div className="text-primary font-medium text-xs mt-0.5">Prihlásiť sa</div>}
+                              {os.myClaimId && <div className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
                               {os.claimedByUsers.length > 0 && (
                                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                                   {os.claimedByUsers.map((u) => (
-                                    <span key={u.claimId} className="text-[9px] px-1 rounded-full" style={{ backgroundColor: u.color + "20", color: u.color }}>{u.userName.split(" ")[0]}</span>
+                                    <span key={u.claimId} className="text-xs px-1 rounded-full" style={{ backgroundColor: u.color + "20", color: u.color }}>{u.userName.split(" ")[0]}</span>
                                   ))}
                                 </div>
                               )}
@@ -676,11 +718,11 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                           return (
                             <div
                               key={rs.id}
-                              className="absolute flex flex-col justify-start rounded-md border border-dashed border-amber-400/60 px-1.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden pointer-events-auto"
+                              className="absolute flex flex-col justify-start rounded-md border border-dashed border-amber-400/60 px-1.5 py-1 text-sm bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden pointer-events-auto"
                               style={posStyle}
                             >
                               <div className="font-medium text-amber-700 dark:text-amber-400 leading-tight">Požiadavka</div>
-                              <div className="text-muted-foreground text-[10px] leading-tight">{rs.startTime}–{rs.endTime}</div>
+                              <div className="text-muted-foreground text-xs leading-tight">{rs.startTime}–{rs.endTime}</div>
                             </div>
                           )
                         }
