@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DatePicker } from "@/components/ui/date-picker"
+import { DatePicker, DateRangePicker } from "@/components/ui/date-picker"
 import { createShiftRule, updateShiftRule } from "@/app/actions/shift-rules"
 import { cn } from "@/lib/utils"
 
@@ -305,10 +305,12 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <DatePicker value={validFrom} onChange={setValidFrom} label="Od" />
-                <DatePicker value={validUntil} onChange={setValidUntil} label="Do" minDate={validFrom} />
-              </div>
+              <DateRangePicker
+                valueFrom={validFrom}
+                valueTo={validUntil}
+                onChangeFrom={setValidFrom}
+                onChangeTo={setValidUntil}
+              />
             </div>
           )}
 

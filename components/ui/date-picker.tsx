@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import type { DateRange } from "react-day-picker"
 
 function toDateStr(d: Date): string {
   const y = d.getFullYear()
@@ -36,7 +37,7 @@ export function DatePicker({
   onChange,
   label,
   minDate,
-  placeholder = "Vyberte dátum",
+  placeholder = "Vyberte datum",
   className,
 }: DatePickerProps) {
   const selected = parseDate(value)
@@ -65,7 +66,73 @@ export function DatePicker({
             onSelect={(d) => {
               if (d) onChange(toDateStr(d))
             }}
+            numberOfMonths={2}
             fromDate={fromDate}
+            locale={sk}
+            weekStartsOn={1}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
+
+export interface DateRangePickerProps {
+  valueFrom: string
+  valueTo: string
+  onChangeFrom: (value: string) => void
+  onChangeTo: (value: string) => void
+  label?: string
+  placeholder?: string
+  className?: string
+}
+
+export function DateRangePicker({
+  valueFrom,
+  valueTo,
+  onChangeFrom,
+  onChangeTo,
+  label,
+  placeholder = "Vyberte obdobie",
+  className,
+}: DateRangePickerProps) {
+  const from = parseDate(valueFrom)
+  const to = parseDate(valueTo)
+  const selected: DateRange | undefined =
+    from || to ? { from, to } : undefined
+
+  const displayText =
+    from && to
+      ? `${format(from, "d. M. yyyy", { locale: sk })} - ${format(to, "d. M. yyyy", { locale: sk })}`
+      : from
+        ? `${format(from, "d. M. yyyy", { locale: sk })} - ...`
+        : placeholder
+
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {label && <Label>{label}</Label>}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !valueFrom && !valueTo && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 size-4" />
+            {displayText}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="range"
+            selected={selected}
+            onSelect={(range) => {
+              onChangeFrom(range?.from ? toDateStr(range.from) : "")
+              onChangeTo(range?.to ? toDateStr(range.to) : "")
+            }}
+            numberOfMonths={2}
             locale={sk}
             weekStartsOn={1}
           />
