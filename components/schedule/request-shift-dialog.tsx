@@ -13,6 +13,8 @@ interface RequestShiftDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   date: string // YYYY-MM-DD
+  defaultStartTime?: string
+  defaultEndTime?: string
 }
 
 function defaultTimes(dateStr: string) {
@@ -22,7 +24,7 @@ function defaultTimes(dateStr: string) {
   return { start: isWeekend ? "15:00" : "16:00", end: "21:00" }
 }
 
-export function RequestShiftDialog({ open, onOpenChange, date }: RequestShiftDialogProps) {
+export function RequestShiftDialog({ open, onOpenChange, date, defaultStartTime, defaultEndTime }: RequestShiftDialogProps) {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [note, setNote] = useState("")
@@ -32,12 +34,12 @@ export function RequestShiftDialog({ open, onOpenChange, date }: RequestShiftDia
   useEffect(() => {
     if (open && date) {
       const { start, end } = defaultTimes(date)
-      setStartTime(start)
-      setEndTime(end)
+      setStartTime(defaultStartTime ?? start)
+      setEndTime(defaultEndTime ?? end)
       setNote("")
       setError("")
     }
-  }, [open, date])
+  }, [open, date, defaultStartTime, defaultEndTime])
 
   const dateLabel = date
     ? new Date(date + "T12:00:00").toLocaleDateString("sk-SK", { weekday: "long", day: "numeric", month: "long" })

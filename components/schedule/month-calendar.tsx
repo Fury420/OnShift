@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react"
@@ -98,9 +98,25 @@ function assignLanes<T extends { startTime: string; endTime: string }>(items: T[
   return items.map((item, i) => ({ item, lane: result[i].lane, totalLanes }))
 }
 
+function snapTo15(minutes: number): number {
+  return Math.round(minutes / 15) * 15
+}
+
+function minutesToTime(m: number): string {
+  const h = Math.floor(m / 60)
+  const min = m % 60
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`
+}
+
+interface DragPreview {
+  date: string
+  topMinutes: number
+  bottomMinutes: number
+}
+
 export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmployees, businessHours, currentUserId }: MonthCalendarProps) {
   const router = useRouter()
-  const [view, setView] = useState<"month" | "week">("month")
+  const [view, setView] = useState<"month" | "week">("week")
   const [weekIdx, setWeekIdx] = useState(() => {
     const today = new Date().toISOString().slice(0, 10)
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
@@ -108,7 +124,71 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   })
   const [leaveCtx, setLeaveCtx] = useState<LeaveContext | null>(null)
   const [requestDate, setRequestDate] = useState<string | null>(null)
+  const [requestStartTime, setRequestStartTime] = useState<string | undefined>()
+  const [requestEndTime, setRequestEndTime] = useState<string | undefined>()
   const [isPending, startTransition] = useTransition()
+
+  // Drag-to-create state
+  const dragRef = useRef<{ date: string; anchorMinutes: number } | null>(null)
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
+  const layoutRef = useRef({ startHour: 8, PAD: 20 })
+
+  const getMinutesFromY = useCallback((y: number, containerRect: DOMRect) => {
+    const { startHour, PAD } = layoutRef.current
+    const relY = y - containerRect.top
+    const minutes = startHour * 60 + ((relY - PAD) / HOUR_HEIGHT) * 60
+    return snapTo15(Math.max(0, minutes))
+  }, [])
+
+  const handleTimelineMouseDown = useCallback((e: React.MouseEvent, date: string) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    const col = timelineRef.current?.querySelector(`[data-day-col="${date}"]`) as HTMLElement | null
+    if (!col) return
+    const rect = col.getBoundingClientRect()
+    const minutes = getMinutesFromY(e.clientY, rect)
+    dragRef.current = { date, anchorMinutes: minutes }
+    setDragPreview({ date, topMinutes: minutes, bottomMinutes: minutes + 15 })
+  }, [getMinutesFromY])
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      const drag = dragRef.current
+      if (!drag) return
+      const col = timelineRef.current?.querySelector(`[data-day-col="${drag.date}"]`) as HTMLElement | null
+      if (!col) return
+      const rect = col.getBoundingClientRect()
+      const minutes = getMinutesFromY(e.clientY, rect)
+      const top = Math.min(drag.anchorMinutes, minutes)
+      const bottom = Math.max(drag.anchorMinutes, minutes)
+      setDragPreview({ date: drag.date, topMinutes: top, bottomMinutes: Math.max(bottom, top + 15) })
+    }
+
+    function onMouseUp() {
+      const drag = dragRef.current
+      if (!drag) return
+      dragRef.current = null
+      setDragPreview(prev => {
+        if (!prev) return null
+        const st = minutesToTime(prev.topMinutes)
+        const et = minutesToTime(prev.bottomMinutes)
+        setTimeout(() => {
+          if (prev.bottomMinutes - prev.topMinutes >= 15) {
+            openRequestDialog(drag.date, st, et)
+          }
+        }, 0)
+        return null
+      })
+    }
+
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+    }
+  }, [getMinutesFromY])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
   const weekStart = currentWeek[0]
@@ -119,6 +199,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     const fmt = (d: Date) => d.toLocaleDateString("sk-SK", { day: "numeric", month: "numeric" })
     return `${fmt(s)} – ${fmt(e)}`
   })()
+
+  function openRequestDialog(date: string, startTime?: string, endTime?: string) {
+    setRequestDate(date)
+    setRequestStartTime(startTime)
+    setRequestEndTime(endTime)
+  }
 
   function handleClaim(shiftId: string) {
     startTransition(async () => {
@@ -216,7 +302,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     <span className={cn("text-sm font-medium capitalize", !day.isCurrentMonth && "text-muted-foreground")}>{dayLabel}</span>
                   </div>
                   {!isPast && (
-                    <button onClick={() => setRequestDate(day.date)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground" title="Požiadať o zmenu">
+                    <button onClick={() => openRequestDialog(day.date)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground" title="Požiadať o zmenu">
                       <Plus className="size-4" />
                     </button>
                   )}
@@ -323,14 +409,14 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         {dayNum}
                       </div>
                       {!isPast && day.isCurrentMonth && (
-                        <button onClick={() => setRequestDate(day.date)} className="opacity-0 group-hover/day:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted" title="Požiadať o zmenu">
+                        <button onClick={() => openRequestDialog(day.date)} className="opacity-0 group-hover/day:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted" title="Požiadať o zmenu">
                           <Plus className="size-3 text-muted-foreground" />
                         </button>
                       )}
                     </div>
                     {hasOpenHours ? (
                       <div className={cn("rounded-md border border-dashed border-muted-foreground/25 bg-muted/10 px-1 pt-0.5 pb-1 flex flex-col gap-0.5 min-h-10", canRequest && "cursor-pointer")}
-                        onClick={canRequest ? () => setRequestDate(day.date) : undefined}>
+                        onClick={canRequest ? () => openRequestDialog(day.date) : undefined}>
                         <div className="text-[9px] text-muted-foreground/50 leading-none mb-0.5 select-none">{bh.openTime!.slice(0, 5)}–{bh.closeTime!.slice(0, 5)}</div>
                         <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>{shiftBlocks}</div>
                       </div>
@@ -366,13 +452,14 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
           startHour = 8; endHour = 22
         }
         const PAD = 20
+        layoutRef.current = { startHour, PAD }
         const totalHeight = (endHour - startHour) * HOUR_HEIGHT + PAD * 2
         const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
         const yPos = (time: string) => PAD + ((timeToMinutes(time) - startHour * 60) / 60) * HOUR_HEIGHT
         const hPos = (start: string, end: string) => yPos(end) - yPos(start)
 
         return (
-          <div className="rounded-xl border overflow-hidden">
+          <div className="rounded-xl border overflow-hidden" ref={timelineRef}>
             {/* Header */}
             <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/50 border-b">
               <div />
@@ -420,17 +507,21 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                 return (
                   <div
                     key={day.date}
-                    className={cn("relative border-l", day.isToday && "bg-primary/5", !day.isCurrentMonth && "bg-muted/20", canRequest && "cursor-pointer")}
+                    data-day-col={day.date}
+                    className={cn("relative border-l select-none", day.isToday && "bg-primary/5", !day.isCurrentMonth && "bg-muted/20", canRequest && "cursor-crosshair")}
                     style={{ height: totalHeight }}
-                    onClick={canRequest ? () => setRequestDate(day.date) : undefined}
+                    onMouseDown={canRequest ? (e) => {
+                      if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute("data-grid-line"))
+                        handleTimelineMouseDown(e, day.date)
+                    } : undefined}
                   >
                     {/* Hour grid lines */}
                     {hours.map((h) => (
-                      <div key={h} className="absolute left-0 right-0 border-t border-muted/40" style={{ top: PAD + (h - startHour) * HOUR_HEIGHT }} />
+                      <div key={h} data-grid-line className="absolute left-0 right-0 border-t border-muted/40 pointer-events-none" style={{ top: PAD + (h - startHour) * HOUR_HEIGHT }} />
                     ))}
 
                     {/* Shift blocks */}
-                    <div className="absolute inset-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="absolute inset-0" style={{ pointerEvents: "none" }}>
                       {lanes.map(({ item, lane, totalLanes }) => {
                         const top = yPos(item.startTime)
                         const height = Math.max(hPos(item.startTime, item.endTime), 24)
@@ -445,7 +536,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             <div
                               key={shift.id}
                               className={cn(
-                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs overflow-hidden",
+                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs overflow-hidden pointer-events-auto",
                                 clickable && "cursor-pointer hover:opacity-80 transition-opacity",
                               )}
                               style={{
@@ -471,7 +562,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             <div
                               key={os.id}
                               className={cn(
-                                "absolute flex flex-col justify-start rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-1 text-xs bg-muted/10 overflow-hidden",
+                                "absolute flex flex-col justify-start rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-1 text-xs bg-muted/10 overflow-hidden pointer-events-auto",
                                 os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors",
                               )}
                               style={posStyle}
@@ -490,7 +581,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                           return (
                             <div
                               key={rs.id}
-                              className="absolute flex flex-col justify-start rounded-md border border-dashed border-amber-400/60 px-1.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden"
+                              className="absolute flex flex-col justify-start rounded-md border border-dashed border-amber-400/60 px-1.5 py-1 text-xs bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden pointer-events-auto"
                               style={posStyle}
                             >
                               <div className="font-medium text-amber-700 dark:text-amber-400 leading-tight">Požiadavka</div>
@@ -501,6 +592,21 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
                         return null
                       })}
+
+                      {/* Drag preview ghost */}
+                      {dragPreview && dragPreview.date === day.date && (
+                        <div
+                          className="absolute left-1 right-1 rounded-md border-2 border-dashed border-primary/60 bg-primary/10 pointer-events-none z-20"
+                          style={{
+                            top: yPos(minutesToTime(dragPreview.topMinutes)),
+                            height: Math.max(((dragPreview.bottomMinutes - dragPreview.topMinutes) / 60) * HOUR_HEIGHT, 12),
+                          }}
+                        >
+                          <div className="px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                            {minutesToTime(dragPreview.topMinutes)}–{minutesToTime(dragPreview.bottomMinutes)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
@@ -522,6 +628,8 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         open={!!requestDate}
         onOpenChange={(open) => { if (!open) setRequestDate(null) }}
         date={requestDate ?? ""}
+        defaultStartTime={requestStartTime}
+        defaultEndTime={requestEndTime}
       />
     </div>
   )

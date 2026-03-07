@@ -144,7 +144,7 @@ export function AdminMonthCalendar({
   businessHours,
 }: AdminMonthCalendarProps) {
   const router = useRouter()
-  const [view, setView] = useState<"month" | "week">("month")
+  const [view, setView] = useState<"month" | "week">("week")
   const [weekIdx, setWeekIdx] = useState(() => {
     const today = new Date().toISOString().slice(0, 10)
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
@@ -156,6 +156,9 @@ export function AdminMonthCalendar({
   const [defaultStartTime, setDefaultStartTime] = useState<string | undefined>()
   const [defaultEndTime, setDefaultEndTime] = useState<string | undefined>()
   const [isPending, startTransition] = useTransition()
+
+  // Controlled dropdown — only one can be open at a time
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   // Drag state
   const dragRef = useRef<DragState | null>(null)
@@ -176,6 +179,7 @@ export function AdminMonthCalendar({
   const pendingDragRef = useRef<{ startX: number; startY: number; args: [string, DragMode, AdminCalendarShift?] } | null>(null)
 
   const startDrag = useCallback((date: string, mode: DragMode, clientY: number, shift?: AdminCalendarShift) => {
+    setOpenMenuId(null) // close any open dropdown
     const col = timelineRef.current?.querySelector(`[data-day-col="${date}"]`) as HTMLElement | null
     if (!col) return
     const rect = col.getBoundingClientRect()
@@ -481,10 +485,10 @@ export function AdminMonthCalendar({
             </div>
           )}
           <div className="flex items-center gap-2">
-            {allDraftIds.length > 0 && (
+            {(allDraftIds.length > 0 || allDraftRuleIds.length > 0) && (
               <Button variant="secondary" size="sm" onClick={handlePublishAll} disabled={isPending}>
                 <Send className="size-4" />
-                Publikovať všetky ({allDraftIds.length})
+                Publikovať všetky ({allDraftIds.length + allDraftRuleIds.length})
               </Button>
             )}
             <Button size="sm" onClick={() => openCreate()}>
@@ -890,7 +894,7 @@ export function AdminMonthCalendar({
                       ))}
 
                       {/* Shift blocks */}
-                      <div className="absolute inset-0 pointer-events-none">
+                      <div className="absolute inset-0" style={{ pointerEvents: "none" }}>
                         {lanes.map(({ item, lane, totalLanes }) => {
                           const top = yPos(item.startTime)
                           const height = Math.max(hPos(item.startTime, item.endTime), 24)
@@ -899,8 +903,9 @@ export function AdminMonthCalendar({
 
                           if (item._type === "shift") {
                             const shift = item
+                            const menuKey = `timeline-${shift.id}`
                             return (
-                              <DropdownMenu key={shift.id}>
+                              <DropdownMenu key={shift.id} open={openMenuId === menuKey} onOpenChange={(open) => setOpenMenuId(open ? menuKey : null)}>
                                 <DropdownMenuTrigger asChild>
                                   <div
                                     className={cn(
@@ -914,9 +919,7 @@ export function AdminMonthCalendar({
                                       color: shift.color,
                                     }}
                                     onMouseDown={(e) => {
-                                      // Only start move drag on left click, not on resize handles
                                       if (e.button !== 0 || (e.target as HTMLElement).dataset.resizeHandle) return
-                                      // Don't preventDefault — let click events through for dropdown
                                       handleDragMouseDown(e, day.date, "move", shift)
                                     }}
                                   >
