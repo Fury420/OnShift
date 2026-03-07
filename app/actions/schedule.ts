@@ -227,6 +227,34 @@ export async function claimShift(shiftId: string) {
   revalidatePath("/admin/schedule")
 }
 
+export async function claimRuleShift(ruleId: string, date: string, startTime: string, endTime: string) {
+  const session = await getSession()
+  if (!session) throw new Error("Nie ste prihlásený")
+  const orgId = await getOrganizationId()
+  const userId = session.user.id
+
+  await checkConflict(userId, date, startTime, endTime)
+
+  const [newShift] = await db.insert(shifts).values({
+    organizationId: orgId,
+    userId: null,
+    date,
+    startTime,
+    endTime,
+    status: "open",
+  }).returning({ id: shifts.id })
+
+  await db.insert(openShiftClaims).values({
+    organizationId: orgId,
+    shiftId: newShift.id,
+    claimedByUserId: userId,
+    status: "pending",
+  })
+
+  revalidatePath("/schedule")
+  revalidatePath("/admin/schedule")
+}
+
 export async function approveShiftClaim(claimId: string) {
   await requireAdmin()
   const orgId = await getOrganizationId()

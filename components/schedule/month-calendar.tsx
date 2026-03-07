@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
 import type { ColleagueOption } from "@/components/shift-replacement/request-dialog"
-import { claimShift } from "@/app/actions/schedule"
+import { claimShift, claimRuleShift } from "@/app/actions/schedule"
 import { toast } from "sonner"
 import { RequestShiftDialog } from "./request-shift-dialog"
 import { ShiftDialog } from "./shift-dialog"
@@ -204,7 +204,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   const weekLabel = (() => {
     const s = new Date(weekStart.date + "T12:00:00")
     const e = new Date(weekEnd.date + "T12:00:00")
-    const fmt = (d: Date) => d.toLocaleDateString("sk-SK", { day: "numeric", month: "numeric" })
+    const fmt = (d: Date) => d.toLocaleDateString("sk-SK", { day: "numeric", month: "short" })
     return `${fmt(s)} – ${fmt(e)}`
   })()
 
@@ -229,10 +229,17 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     router.refresh()
   }
 
-  function handleClaim(shiftId: string) {
+  function handleClaim(os: { id: string; startTime: string; endTime: string }) {
     startTransition(async () => {
       try {
-        await claimShift(shiftId)
+        if (os.id.startsWith("rule:")) {
+          const parts = os.id.split(":")
+          const ruleId = parts[1]
+          const date = parts.slice(2).join(":")
+          await claimRuleShift(ruleId, date, os.startTime, os.endTime)
+        } else {
+          await claimShift(os.id)
+        }
         toast.success("Prihlásenie odoslané — čaká na schválenie")
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Chyba pri prihlasovaní")
@@ -259,13 +266,23 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     else router.push(`/schedule?month=${nextMonth}`)
   }
 
+  function goToToday() {
+    const today = new Date().toISOString().slice(0, 10)
+    const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
+    if (idx >= 0) {
+      setWeekIdx(idx)
+    } else {
+      router.push("/schedule")
+    }
+  }
+
   const todayStr = new Date().toISOString().slice(0, 10)
 
   return (
     <div className="flex flex-col gap-4 w-full">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2">
-        {view === "month" ? (
+          {view === "month" ? (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" asChild>
               <Link href={`/schedule?month=${prevMonth}`}><ChevronLeft className="size-4" /></Link>
@@ -274,12 +291,16 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
             <Button variant="outline" size="icon" asChild>
               <Link href={`/schedule?month=${nextMonth}`}><ChevronRight className="size-4" /></Link>
             </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/schedule">Dnes</Link>
+            </Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={handlePrevWeek}><ChevronLeft className="size-4" /></Button>
             <span className="text-sm font-medium min-w-40 text-center">{weekLabel}</span>
             <Button variant="outline" size="icon" onClick={handleNextWeek}><ChevronRight className="size-4" /></Button>
+            <Button variant="outline" size="sm" onClick={goToToday}>Dnes</Button>
           </div>
         )}
 
@@ -369,7 +390,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     {day.openShifts.map((os) => (
                       <div key={os.id}
                         className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1 bg-muted/10", os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
-                        onClick={os.iMayClaim && !isPast ? () => handleClaim(os.id) : undefined}>
+                        onClick={os.iMayClaim && !isPast ? () => handleClaim(os) : undefined}>
                         <div className="flex items-center justify-between">
                           <div className="text-sm font-medium text-muted-foreground">Voľná zmena</div>
                           {os.iMayClaim && !isPast && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
@@ -426,7 +447,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     {day.openShifts.map((os) => (
                       <div key={os.id}
                         className={cn("rounded border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-xs leading-tight bg-background", os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
-                        onClick={os.iMayClaim && !isPast ? () => handleClaim(os.id) : undefined}>
+                        onClick={os.iMayClaim && !isPast ? () => handleClaim(os) : undefined}>
                         <div className="flex items-center justify-between gap-0.5">
                           <span className="truncate text-muted-foreground font-medium">Voľná</span>
                           {os.myClaimId && <Clock className="size-2.5 text-muted-foreground shrink-0" />}
@@ -604,7 +625,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                 os.iMayClaim && !isPast && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors",
                               )}
                               style={posStyle}
-                              onClick={os.iMayClaim && !isPast ? () => handleClaim(os.id) : undefined}
+                              onClick={os.iMayClaim && !isPast ? () => handleClaim(os) : undefined}
                             >
                               <div className="font-medium text-muted-foreground leading-tight">Voľná</div>
                               <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>

@@ -340,7 +340,7 @@ export function AdminMonthCalendar({
   const weekLabel = (() => {
     const s = new Date(currentWeek[0].date + "T12:00:00")
     const e = new Date(currentWeek[6].date + "T12:00:00")
-    const fmt = (d: Date) => d.toLocaleDateString("sk-SK", { day: "numeric", month: "numeric" })
+    const fmt = (d: Date) => d.toLocaleDateString("sk-SK", { day: "numeric", month: "short" })
     return `${fmt(s)} – ${fmt(e)}`
   })()
 
@@ -351,6 +351,15 @@ export function AdminMonthCalendar({
   function handleNextWeek() {
     if (weekIdx < weeks.length - 1) setWeekIdx(weekIdx + 1)
     else router.push(`/admin/schedule?month=${nextMonth}`)
+  }
+  function goToToday() {
+    const today = new Date().toISOString().slice(0, 10)
+    const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
+    if (idx >= 0) {
+      setWeekIdx(idx)
+    } else {
+      router.push("/admin/schedule")
+    }
   }
 
   const allDraftIds = weeks.flatMap((week) =>
@@ -503,12 +512,16 @@ export function AdminMonthCalendar({
               <Button variant="outline" size="icon" asChild>
                 <Link href={`/admin/schedule?month=${nextMonth}`}><ChevronRight className="size-4" /></Link>
               </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/schedule">Dnes</Link>
+              </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={handlePrevWeek}><ChevronLeft className="size-4" /></Button>
               <span className="text-sm font-medium min-w-40 text-center">{weekLabel}</span>
               <Button variant="outline" size="icon" onClick={handleNextWeek}><ChevronRight className="size-4" /></Button>
+              <Button variant="outline" size="sm" onClick={goToToday}>Dnes</Button>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -877,13 +890,6 @@ export function AdminMonthCalendar({
                       <div className={cn("mx-auto mt-0.5 size-7 rounded-full flex items-center justify-center text-sm font-semibold", day.isToday ? "bg-primary text-primary-foreground" : "text-foreground")}>
                         {dateObj.getDate()}
                       </div>
-                      <button
-                        onClick={() => openOffer(day.date)}
-                        className="mt-1 mx-auto flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <Plus className="size-3" />
-                        Ponuka
-                      </button>
                     </div>
                   )
                 })}
