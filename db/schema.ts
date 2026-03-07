@@ -172,6 +172,8 @@ export const leaves = pgTable("leaves", {
   endDate: date("end_date").notNull(),
   status: leaveStatusEnum("status").notNull().default("pending"),
   note: text("note"),
+  /** Navrhnutý zastup – môže schváliť žiadosť aj tento používateľ (okrem admina). */
+  suggestedReplacementUserId: text("suggested_replacement_user_id").references(() => user.id, { onDelete: "set null" }),
   approvedBy: text("approved_by").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

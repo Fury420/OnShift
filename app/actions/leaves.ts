@@ -12,6 +12,7 @@ export async function requestLeave(data: {
   startDate: string
   endDate: string
   note?: string
+  suggestedReplacementUserId?: string
 }) {
   const session = await getSession()
   if (!session) throw new Error("Nie ste prihlásený.")
@@ -25,6 +26,7 @@ export async function requestLeave(data: {
     endDate: data.endDate,
     note: data.note || null,
     status: "pending",
+    suggestedReplacementUserId: data.suggestedReplacementUserId || null,
   })
 
   revalidatePath("/leaves")
@@ -96,17 +98,48 @@ export async function adminUpdateLeave(
 }
 
 export async function adminUpdateLeaveStatus(id: string, status: "approved" | "rejected") {
-  await requireAdmin()
+  const session = await requireAdmin()
   const orgId = await getOrganizationId()
 
   await db
     .update(leaves)
-    .set({ status, updatedAt: new Date() })
+    .set({ status, approvedBy: session.user.id, updatedAt: new Date() })
     .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
   revalidatePath("/schedule")
+  revalidatePath("/replacements")
+}
+
+/** Schválenie/zamietnutie žiadosti o voľno – môže admin alebo navrhnutý zastup. */
+export async function approveLeave(id: string, status: "approved" | "rejected") {
+  const session = await getSession()
+  if (!session) throw new Error("Nie ste prihlásený.")
+  const orgId = await getOrganizationId()
+  const currentUserId = session.user.id
+  const isAdmin = (session.user as { role?: string }).role === "admin"
+
+  const [leave] = await db
+    .select({ id: leaves.id, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId })
+    .from(leaves)
+    .where(eq(leaves.id, id))
+    .limit(1)
+
+  if (!leave) throw new Error("Žiadosť nebola nájdená.")
+  if (leave.organizationId !== orgId) throw new Error("Nemáte oprávnenie.")
+  if (leave.status !== "pending") throw new Error("Žiadosť už bola vybavená.")
+
+  const mayApprove = isAdmin || leave.suggestedReplacementUserId === currentUserId
+  if (!mayApprove) throw new Error("Nemáte oprávnenie schváliť túto žiadosť.")
+
+  await db
+    .update(leaves)
+    .set({ status, approvedBy: currentUserId, updatedAt: new Date() })
+    .where(eq(leaves.id, id))
+
+  revalidatePath("/leaves")
+  revalidatePath("/admin/leaves")
   revalidatePath("/replacements")
 }
 

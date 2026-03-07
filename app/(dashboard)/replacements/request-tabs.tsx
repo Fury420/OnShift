@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
 import { EmployeeLeavesTable, type LeaveRow } from "@/components/leaves/employee-leaves-table"
-import { AdminLeavesTable, type AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
+import { ApproveAsReplacementTable, type LeaveToApproveRow } from "@/components/leaves/approve-as-replacement-table"
 import { MyRequestsTable, type MyReplacementRequest } from "@/components/shift-replacement/my-requests-table"
 import { IncomingRequestsTable } from "@/components/shift-replacement/incoming-requests-table"
 import { AdminReplacementsTable, type AdminReplacementRequest } from "@/components/shift-replacement/admin-replacements-table"
@@ -19,7 +19,7 @@ export interface RequestTabsProps {
   isAdmin: boolean
   leaves: LeaveRow[]
   myRequests: MyReplacementRequest[]
-  pendingLeaves: AdminLeaveRow[]
+  leavesToApproveAsReplacement: LeaveToApproveRow[]
   incomingRequests: { id: string; shiftDate: string; shiftTime: string; requesterName: string; note: string | null }[]
   allPendingRequests: AdminReplacementRequest[]
   monthLabel: string
@@ -34,7 +34,7 @@ export function RequestTabs({
   isAdmin,
   leaves,
   myRequests,
-  pendingLeaves,
+  leavesToApproveAsReplacement,
   incomingRequests,
   allPendingRequests,
   monthLabel,
@@ -78,17 +78,28 @@ export function RequestTabs({
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-6">
               {isAdmin ? (
-                pendingLeaves.length === 0 ? (
-                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
-                ) : (
-                  <AdminLeavesTable rows={pendingLeaves} />
-                )
-              ) : leaves.length === 0 ? (
                 <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
               ) : (
-                <EmployeeLeavesTable rows={leaves} />
+                <>
+                  {leavesToApproveAsReplacement.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-medium">Žiadosti na schválenie (ste navrhnutý ako zastup)</p>
+                      <ApproveAsReplacementTable rows={leavesToApproveAsReplacement} />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-medium">Moje žiadosti o voľno</p>
+                    {leaves.length === 0 && leavesToApproveAsReplacement.length === 0 ? (
+                      <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                    ) : leaves.length === 0 ? (
+                      <p className="py-4 text-center text-muted-foreground text-sm">{EMPTY_MESSAGE}</p>
+                    ) : (
+                      <EmployeeLeavesTable rows={leaves} />
+                    )}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -145,7 +156,7 @@ export function RequestTabs({
         </TabsContent>
       </Tabs>
 
-      <LeaveRequestDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} />
+      <LeaveRequestDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} colleagues={colleagues} />
       <NewReplacementDialog
         open={replacementDialogOpen}
         onOpenChange={setReplacementDialogOpen}

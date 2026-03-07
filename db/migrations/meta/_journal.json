@@ -71,6 +71,13 @@
       "when": 1772846432475,
       "tag": "0009_faulty_cassandra_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1772921508882,
+      "tag": "0010_slim_loners",
+      "breakpoints": true
     }
   ]
 }

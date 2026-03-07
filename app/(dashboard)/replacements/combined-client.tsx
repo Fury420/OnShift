@@ -1,7 +1,6 @@
 "use client"
 
 import type { LeaveRow } from "@/components/leaves/employee-leaves-table"
-import type { AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
 import { RequestTabs } from "./request-tabs"
 
 interface MyRequest {
@@ -32,13 +31,22 @@ interface AdminRequest {
   createdAt: string
 }
 
+interface LeaveToApprove {
+  id: string
+  userName: string
+  type: string
+  startDate: string
+  endDate: string
+  note: string | null
+}
+
 interface Props {
   leaves: LeaveRow[]
   isAdmin: boolean
   myRequests: MyRequest[]
   incomingRequests: IncomingRequest[]
   allPendingRequests: AdminRequest[]
-  pendingLeaves: AdminLeaveRow[]
+  leavesToApproveAsReplacement: LeaveToApprove[]
   monthLabel: string
   prevMonth: string
   nextMonth: string
@@ -53,7 +61,7 @@ export function CombinedClient({
   myRequests,
   incomingRequests,
   allPendingRequests,
-  pendingLeaves,
+  leavesToApproveAsReplacement,
   monthLabel,
   prevMonth,
   nextMonth,
@@ -69,7 +77,7 @@ export function CombinedClient({
         isAdmin={isAdmin}
         leaves={leaves}
         myRequests={myRequests}
-        pendingLeaves={pendingLeaves}
+        leavesToApproveAsReplacement={leavesToApproveAsReplacement}
         incomingRequests={incomingRequests}
         allPendingRequests={allPendingRequests}
         monthLabel={monthLabel}

@@ -89,7 +89,13 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
           await updateLeave(leave.id, { type, startDate, endDate, note })
           toast.success("Žiadosť bola upravená")
         } else {
-          await requestLeave({ type, startDate, endDate, note })
+          await requestLeave({
+            type,
+            startDate,
+            endDate,
+            note,
+            suggestedReplacementUserId: replacementUserId || undefined,
+          })
           if (shiftId && replacementUserId) {
             await requestReplacement(shiftId, replacementUserId)
           }
@@ -105,7 +111,7 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
     })
   }
 
-  const showReplacementPicker = !isEdit && !!shiftId && !!colleagues?.length
+  const showReplacementPicker = !isEdit && !!colleagues?.length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -150,7 +156,7 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
           {showReplacementPicker && (
             <div className="flex flex-col gap-1.5">
               <Label>
-                Požiadať o zastup zmeny{shiftLabel ? ` (${shiftLabel})` : ""}{" "}
+                {shiftId ? `Požiadať o zastup zmeny${shiftLabel ? ` (${shiftLabel})` : ""}` : "Navrhnúť zastup (kto môže schváliť žiadosť)"}{" "}
                 <span className="text-muted-foreground font-normal">(nepovinné)</span>
               </Label>
               <Select value={replacementUserId} onValueChange={setReplacementUserId}>
