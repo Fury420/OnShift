@@ -118,4 +118,5 @@ export async function adminDeleteLeave(id: string) {
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }

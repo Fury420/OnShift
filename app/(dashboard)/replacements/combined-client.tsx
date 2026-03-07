@@ -1,14 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, ArrowLeftRight } from "lucide-react"
-import { RequestTabs } from "./request-tabs"
 import type { LeaveRow } from "@/components/leaves/employee-leaves-table"
-import { IncomingRequestsTable } from "@/components/shift-replacement/incoming-requests-table"
-import { AdminReplacementsTable } from "@/components/shift-replacement/admin-replacements-table"
-import { NewReplacementDialog, type ShiftOption, type ColleagueOption } from "@/components/shift-replacement/new-replacement-dialog"
+import type { AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
+import { RequestTabs } from "./request-tabs"
 
 interface MyRequest {
   id: string
@@ -44,12 +38,13 @@ interface Props {
   myRequests: MyRequest[]
   incomingRequests: IncomingRequest[]
   allPendingRequests: AdminRequest[]
+  pendingLeaves: AdminLeaveRow[]
   monthLabel: string
   prevMonth: string
   nextMonth: string
   isCurrentMonth: boolean
-  myShifts: ShiftOption[]
-  colleagues: ColleagueOption[]
+  myShifts: { id: string; label: string }[]
+  colleagues: { id: string; name: string }[]
 }
 
 export function CombinedClient({
@@ -58,6 +53,7 @@ export function CombinedClient({
   myRequests,
   incomingRequests,
   allPendingRequests,
+  pendingLeaves,
   monthLabel,
   prevMonth,
   nextMonth,
@@ -65,51 +61,21 @@ export function CombinedClient({
   myShifts,
   colleagues,
 }: Props) {
-  const [replacementDialogOpen, setReplacementDialogOpen] = useState(false)
-
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
       <h1 className="text-2xl font-semibold">Žiadosti</h1>
 
       <RequestTabs
+        isAdmin={isAdmin}
         leaves={leaves}
         myRequests={myRequests}
+        pendingLeaves={pendingLeaves}
+        incomingRequests={incomingRequests}
+        allPendingRequests={allPendingRequests}
         monthLabel={monthLabel}
         prevMonth={prevMonth}
         nextMonth={nextMonth}
         isCurrentMonth={isCurrentMonth}
-      />
-
-      {/* ── Zastup: prichádzajúce / admin ─────────────────── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-2">
-            <ArrowLeftRight className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Zastup zmien</CardTitle>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setReplacementDialogOpen(true)}>
-            <Plus className="size-4" />
-            Požiadať o zastup
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          {isAdmin ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">Všetky čakajúce žiadosti o zastup.</p>
-              <AdminReplacementsTable requests={allPendingRequests} />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">Kolegovia ťa navrhli ako náhradníka.</p>
-              <IncomingRequestsTable requests={incomingRequests} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <NewReplacementDialog
-        open={replacementDialogOpen}
-        onOpenChange={setReplacementDialogOpen}
         myShifts={myShifts}
         colleagues={colleagues}
       />

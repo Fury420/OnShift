@@ -60,7 +60,7 @@ export function EmployeeLeavesTable({ rows }: Props) {
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Žiadne žiadosti o voľno.</p>
+    return <p className="text-sm text-muted-foreground">Zatiaľ tu nič nie je.</p>
   }
 
   return (

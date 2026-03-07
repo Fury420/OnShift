@@ -7,6 +7,7 @@ import { eq, and, gte, lt, desc, isNull, ne } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { shortTime } from "@/lib/week"
 import { CombinedClient } from "./combined-client"
+import type { AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
 
 const TZ = "Europe/Bratislava"
 
@@ -65,7 +66,7 @@ export default async function ZastupPage({
 
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ })
 
-  const [myRequests, incomingRequests, allPendingRequests, leavesData, upcomingShiftsRaw, colleaguesRaw] = await Promise.all([
+  const [myRequests, incomingRequests, allPendingRequests, leavesData, upcomingShiftsRaw, colleaguesRaw, pendingLeavesRaw] = await Promise.all([
     db
       .select({
         id: shiftReplacements.id,
@@ -152,6 +153,23 @@ export default async function ZastupPage({
       .from(user)
       .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId)))
       .orderBy(user.name),
+
+    isAdmin
+      ? db
+          .select({
+            id: leaves.id,
+            userName: user.name,
+            type: leaves.type,
+            startDate: leaves.startDate,
+            endDate: leaves.endDate,
+            status: leaves.status,
+            note: leaves.note,
+          })
+          .from(leaves)
+          .leftJoin(user, eq(leaves.userId, user.id))
+          .where(and(eq(leaves.organizationId, orgId), eq(leaves.status, "pending")))
+          .orderBy(desc(leaves.createdAt))
+      : Promise.resolve([]),
   ])
 
   const myFormatted = myRequests.map((r) => ({
@@ -190,6 +208,16 @@ export default async function ZastupPage({
     return { id: s.id, label: `${dateLabel} ${shortTime(s.startTime)}–${shortTime(s.endTime)}` }
   })
 
+  const pendingLeaves: AdminLeaveRow[] = (pendingLeavesRaw as typeof pendingLeavesRaw).map((r) => ({
+    id: r.id,
+    userName: r.userName ?? "—",
+    type: r.type,
+    startDate: r.startDate,
+    endDate: r.endDate,
+    status: r.status,
+    note: r.note ?? null,
+  }))
+
   return (
     <CombinedClient
       leaves={leavesData}
@@ -197,6 +225,7 @@ export default async function ZastupPage({
       myRequests={myFormatted}
       incomingRequests={incomingFormatted}
       allPendingRequests={allPendingFormatted}
+      pendingLeaves={pendingLeaves}
       monthLabel={monthLabel}
       prevMonth={prevMonth}
       nextMonth={nextMonth}
