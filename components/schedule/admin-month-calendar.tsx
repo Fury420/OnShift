@@ -1021,9 +1021,6 @@ export function AdminMonthCalendar({
                                   {shift.startTime}–{shift.endTime}
                                   {shift.status === "draft" && " · koncept"}
                                 </div>
-                                {shift.note && height > 48 && (
-                                  <div className="opacity-60 truncate mt-0.5 text-[10px]">{shift.note}</div>
-                                )}
                                 {/* Resize handle bottom */}
                                 <div
                                   data-resize-handle="bottom"

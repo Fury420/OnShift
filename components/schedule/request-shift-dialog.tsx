@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker, DateRangePicker } from "@/components/ui/date-picker"
@@ -52,7 +51,6 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
   const [startTime, setStartTime] = useState("16:00")
   const [endTime, setEndTime] = useState("21:00")
   const [allDay, setAllDay] = useState(false)
-  const [note, setNote] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
@@ -67,7 +65,6 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
       setStartTime(defaultStartTime ?? start)
       setEndTime(defaultEndTime ?? end)
       setAllDay(false)
-      setNote("")
       setError("")
     }
   }, [open, initialDate, defaultStartTime, defaultEndTime])
@@ -113,7 +110,7 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
     startTransition(async () => {
       try {
         if (frequency === "once") {
-          await requestShift({ date, startTime, endTime, note })
+          await requestShift({ date, startTime, endTime, note: undefined })
         } else {
           await requestShiftRule({
             frequency: "weekly",
@@ -123,7 +120,7 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
             startTime: allDay ? undefined : startTime,
             endTime: allDay ? undefined : endTime,
             allDay,
-            note: note || undefined,
+            note: undefined,
           })
         }
         toast.success("Požiadavka odoslaná — čaká na schválenie")
@@ -239,17 +236,6 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
               </div>
             </div>
           )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="note">Poznámka (nepovinná)</Label>
-            <Textarea
-              id="note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              placeholder="Napr. môžem len do 22:00…"
-            />
-          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

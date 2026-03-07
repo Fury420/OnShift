@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker, DateRangePicker } from "@/components/ui/date-picker"
@@ -43,7 +42,6 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
   const [startTime, setStartTime] = useState("16:00")
   const [endTime, setEndTime] = useState("21:00")
   const [allDay, setAllDay] = useState(true)
-  const [note, setNote] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
@@ -57,7 +55,6 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
       setStartTime(defaultStartTime ?? "16:00")
       setEndTime(defaultEndTime ?? "21:00")
       setAllDay(!defaultStartTime)
-      setNote("")
       setError("")
     }
   }, [open, defaultDate, defaultStartTime, defaultEndTime])
@@ -120,7 +117,7 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
           startTime: allDay ? undefined : startTime,
           endTime: allDay ? undefined : endTime,
           allDay,
-          note: note || undefined,
+          note: undefined,
         })
         onOpenChange(false)
       } catch (err) {
@@ -222,11 +219,6 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
               </div>
             </div>
           )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="offerNote">Poznámka (nepovinná)</Label>
-            <Textarea id="offerNote" value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Napr. potrebujeme výpomoc na rannú zmenu…" />
-          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

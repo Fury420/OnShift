@@ -590,9 +590,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             >
                               <div className="font-semibold truncate leading-tight">{shift.userName}</div>
                               <div className="opacity-80 leading-tight text-[10px]">{shift.startTime}–{shift.endTime}</div>
-                              {shift.note && height > 48 && (
-                                <div className="opacity-60 truncate mt-0.5 text-[10px]">{shift.note}</div>
-                              )}
                             </div>
                           )
                         }

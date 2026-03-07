@@ -91,7 +91,6 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [allDay, setAllDay] = useState(true)
-  const [note, setNote] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
@@ -107,7 +106,6 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         setStartTime(shift.startTime?.slice(0, 5) ?? "")
         setEndTime(shift.endTime?.slice(0, 5) ?? "")
         setAllDay(shift.allDay)
-        setNote(shift.note ?? "")
       } else {
         setUserId(fixedUserId ?? employees[0]?.id ?? OPEN_SHIFT_VALUE)
         setFrequency("once")
@@ -118,7 +116,6 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         setStartTime(defaultStartTime ?? "16:00")
         setEndTime(defaultEndTime ?? "21:00")
         setAllDay(!defaultStartTime)
-        setNote("")
       }
       setError("")
     }
@@ -185,7 +182,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             startTime: allDay ? null : startTime,
             endTime: allDay ? null : endTime,
             allDay,
-            note: note || null,
+            note: null,
           })
         } else {
           await createShiftRule({
@@ -198,7 +195,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             startTime: allDay ? undefined : startTime,
             endTime: allDay ? undefined : endTime,
             allDay,
-            note: note || undefined,
+            note: undefined,
           })
         }
         onOpenChange(false)
