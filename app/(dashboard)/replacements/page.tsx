@@ -64,7 +64,7 @@ export default async function ZastupPage({
 
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ })
 
-  const [myRequests, incomingRequests, allPendingRequests, leavesData, upcomingShiftsRaw, colleaguesRaw, pendingLeavesRaw] = await Promise.all([
+  const [myRequests, incomingRequests, allPendingRequests, leavesData, upcomingShiftsRaw, colleaguesRaw, ...rest] = await Promise.all([
     db
       .select({
         id: shiftReplacements.id,
@@ -152,29 +152,49 @@ export default async function ZastupPage({
       .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId)))
       .orderBy(user.name),
 
-    isAdmin
-      ? Promise.resolve([])
-      : db
-          .select({
-            id: leaves.id,
-            userName: user.name,
-            type: leaves.type,
-            startDate: leaves.startDate,
-            endDate: leaves.endDate,
-            status: leaves.status,
-            note: leaves.note,
-          })
-          .from(leaves)
-          .leftJoin(user, eq(leaves.userId, user.id))
-          .where(
-            and(
-              eq(leaves.organizationId, orgId),
-              eq(leaves.status, "pending"),
-              eq(leaves.suggestedReplacementUserId, userId),
-            ),
-          )
-          .orderBy(desc(leaves.createdAt)),
+    (async () => {
+      try {
+        return isAdmin
+          ? await db
+              .select({
+                id: leaves.id,
+                userName: user.name,
+                type: leaves.type,
+                startDate: leaves.startDate,
+                endDate: leaves.endDate,
+                status: leaves.status,
+                note: leaves.note,
+              })
+              .from(leaves)
+              .leftJoin(user, eq(leaves.userId, user.id))
+              .where(and(eq(leaves.organizationId, orgId), eq(leaves.status, "pending")))
+              .orderBy(desc(leaves.createdAt))
+          : await db
+              .select({
+                id: leaves.id,
+                userName: user.name,
+                type: leaves.type,
+                startDate: leaves.startDate,
+                endDate: leaves.endDate,
+                status: leaves.status,
+                note: leaves.note,
+              })
+              .from(leaves)
+              .leftJoin(user, eq(leaves.userId, user.id))
+              .where(
+                and(
+                  eq(leaves.organizationId, orgId),
+                  eq(leaves.status, "pending"),
+                  eq(leaves.suggestedReplacementUserId, userId),
+                ),
+              )
+              .orderBy(desc(leaves.createdAt))
+      } catch {
+        return []
+      }
+    })(),
   ])
+  const pendingLeavesRaw = rest[0]
 
   const myFormatted = myRequests.map((r) => ({
     id: r.id,
@@ -212,16 +232,30 @@ export default async function ZastupPage({
     return { id: s.id, label: `${dateLabel} ${shortTime(s.startTime)}–${shortTime(s.endTime)}` }
   })
 
-  const leavesToApproveAsReplacement: { id: string; userName: string; type: string; startDate: string; endDate: string; note: string | null }[] = (
-    pendingLeavesRaw as { id: string; userName: string | null; type: string; startDate: string; endDate: string; status: string; note: string | null }[]
-  ).map((r) => ({
-    id: r.id,
-    userName: r.userName ?? "—",
-    type: r.type,
-    startDate: r.startDate,
-    endDate: r.endDate,
-    note: r.note ?? null,
-  }))
+  const pendingLeavesRawTyped = pendingLeavesRaw as { id: string; userName: string | null; type: string; startDate: string; endDate: string; status: string; note: string | null }[]
+
+  const pendingLeavesForAdmin = isAdmin
+    ? pendingLeavesRawTyped.map((r) => ({
+        id: r.id,
+        userName: r.userName ?? "—",
+        type: r.type,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        status: r.status,
+        note: r.note ?? null,
+      }))
+    : []
+
+  const leavesToApproveAsReplacement = !isAdmin
+    ? pendingLeavesRawTyped.map((r) => ({
+        id: r.id,
+        userName: r.userName ?? "—",
+        type: r.type,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        note: r.note ?? null,
+      }))
+    : []
 
   return (
     <CombinedClient
@@ -230,6 +264,7 @@ export default async function ZastupPage({
       myRequests={myFormatted}
       incomingRequests={incomingFormatted}
       allPendingRequests={allPendingFormatted}
+      pendingLeavesForAdmin={pendingLeavesForAdmin}
       leavesToApproveAsReplacement={leavesToApproveAsReplacement}
       monthLabel={monthLabel}
       prevMonth={prevMonth}

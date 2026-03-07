@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
 import { EmployeeLeavesTable, type LeaveRow } from "@/components/leaves/employee-leaves-table"
+import { AdminLeavesTable, type AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
 import { ApproveAsReplacementTable, type LeaveToApproveRow } from "@/components/leaves/approve-as-replacement-table"
 import { MyRequestsTable, type MyReplacementRequest } from "@/components/shift-replacement/my-requests-table"
 import { IncomingRequestsTable } from "@/components/shift-replacement/incoming-requests-table"
@@ -19,6 +20,7 @@ export interface RequestTabsProps {
   isAdmin: boolean
   leaves: LeaveRow[]
   myRequests: MyReplacementRequest[]
+  pendingLeavesForAdmin: AdminLeaveRow[]
   leavesToApproveAsReplacement: LeaveToApproveRow[]
   incomingRequests: { id: string; shiftDate: string; shiftTime: string; requesterName: string; note: string | null }[]
   allPendingRequests: AdminReplacementRequest[]
@@ -34,6 +36,7 @@ export function RequestTabs({
   isAdmin,
   leaves,
   myRequests,
+  pendingLeavesForAdmin,
   leavesToApproveAsReplacement,
   incomingRequests,
   allPendingRequests,
@@ -80,7 +83,11 @@ export function RequestTabs({
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               {isAdmin ? (
-                <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                pendingLeavesForAdmin.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                ) : (
+                  <AdminLeavesTable rows={pendingLeavesForAdmin} />
+                )
               ) : (
                 <>
                   {leavesToApproveAsReplacement.length > 0 && (

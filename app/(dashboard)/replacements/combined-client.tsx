@@ -40,12 +40,23 @@ interface LeaveToApprove {
   note: string | null
 }
 
+interface AdminLeaveRow {
+  id: string
+  userName: string
+  type: string
+  startDate: string
+  endDate: string
+  status: string
+  note: string | null
+}
+
 interface Props {
   leaves: LeaveRow[]
   isAdmin: boolean
   myRequests: MyRequest[]
   incomingRequests: IncomingRequest[]
   allPendingRequests: AdminRequest[]
+  pendingLeavesForAdmin: AdminLeaveRow[]
   leavesToApproveAsReplacement: LeaveToApprove[]
   monthLabel: string
   prevMonth: string
@@ -61,6 +72,7 @@ export function CombinedClient({
   myRequests,
   incomingRequests,
   allPendingRequests,
+  pendingLeavesForAdmin,
   leavesToApproveAsReplacement,
   monthLabel,
   prevMonth,
@@ -77,6 +89,7 @@ export function CombinedClient({
         isAdmin={isAdmin}
         leaves={leaves}
         myRequests={myRequests}
+        pendingLeavesForAdmin={pendingLeavesForAdmin}
         leavesToApproveAsReplacement={leavesToApproveAsReplacement}
         incomingRequests={incomingRequests}
         allPendingRequests={allPendingRequests}
