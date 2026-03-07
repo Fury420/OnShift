@@ -14,9 +14,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift-dialog"
+import { OfferShiftDialog } from "./offer-shift-dialog"
 import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftClaim, rejectShiftClaim, approveShiftRequest, rejectShiftRequest, updateShift } from "@/app/actions/schedule"
 import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
-import { Check, X, Pencil, Eye, EyeOff, Trash2, CalendarX } from "lucide-react"
+import { Check, X, Pencil, Eye, EyeOff, Trash2, CalendarX, CalendarPlus } from "lucide-react"
 import { toast } from "sonner"
 
 export interface AdminCalendarShift {
@@ -42,6 +43,8 @@ export interface AdminOpenShift {
   endTime: string
   note: string | null
   claims: { claimId: string; userId: string; userName: string; color: string }[]
+  isRule?: boolean
+  ruleId?: string | null
 }
 
 export interface AdminRequestedShift {
@@ -156,6 +159,10 @@ export function AdminMonthCalendar({
   const [defaultDate, setDefaultDate] = useState<string | undefined>()
   const [defaultStartTime, setDefaultStartTime] = useState<string | undefined>()
   const [defaultEndTime, setDefaultEndTime] = useState<string | undefined>()
+  const [offerDialogOpen, setOfferDialogOpen] = useState(false)
+  const [offerDate, setOfferDate] = useState<string | undefined>()
+  const [offerStartTime, setOfferStartTime] = useState<string | undefined>()
+  const [offerEndTime, setOfferEndTime] = useState<string | undefined>()
   const [isPending, startTransition] = useTransition()
 
   // Controlled dropdown — only one can be open at a time
@@ -403,6 +410,13 @@ export function AdminMonthCalendar({
     setDialogOpen(true)
   }
 
+  function openOffer(date?: string, startTime?: string, endTime?: string) {
+    setOfferDate(date)
+    setOfferStartTime(startTime)
+    setOfferEndTime(endTime)
+    setOfferDialogOpen(true)
+  }
+
   function handleDelete(id: string, isRule: boolean, ruleId?: string | null) {
     if (isRule && ruleId) {
       startTransition(() => deleteShiftRule(ruleId))
@@ -504,6 +518,10 @@ export function AdminMonthCalendar({
                 Publikovať všetky ({allDraftIds.length + allDraftRuleIds.length})
               </Button>
             )}
+            <Button size="sm" variant="outline" onClick={() => openOffer()}>
+              <CalendarPlus className="size-4" />
+              Ponuka zmeny
+            </Button>
             <Button size="sm" onClick={() => openCreate()}>
               <Plus className="size-4" />
               Nová zmena
@@ -609,9 +627,9 @@ export function AdminMonthCalendar({
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditRule({ id: os.id, ruleId: null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: false })}>Upraviť</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditRule({ id: os.id, ruleId: os.ruleId ?? null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: !!os.isRule })}>Upraviť</DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(os.id, false)} disabled={isPending}>Odstrániť</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(os.id, !!os.isRule, os.ruleId)} disabled={isPending}>Odstrániť</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -689,9 +707,9 @@ export function AdminMonthCalendar({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditRule({ id: os.id, ruleId: null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: false })}>Upraviť</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditRule({ id: os.id, ruleId: os.ruleId ?? null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: !!os.isRule })}>Upraviť</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(os.id, false)} disabled={isPending}>Odstrániť</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(os.id, !!os.isRule, os.ruleId)} disabled={isPending}>Odstrániť</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -859,6 +877,13 @@ export function AdminMonthCalendar({
                       <div className={cn("mx-auto mt-0.5 size-7 rounded-full flex items-center justify-center text-sm font-semibold", day.isToday ? "bg-primary text-primary-foreground" : "text-foreground")}>
                         {dateObj.getDate()}
                       </div>
+                      <button
+                        onClick={() => openOffer(day.date)}
+                        className="mt-1 mx-auto flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Plus className="size-3" />
+                        Ponuka
+                      </button>
                     </div>
                   )
                 })}
@@ -1016,9 +1041,26 @@ export function AdminMonthCalendar({
                             return (
                               <div
                                 key={os.id}
-                                className="absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden pointer-events-auto"
+                                className="absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden pointer-events-auto group/openblock"
                                 style={{ top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)` }}
                               >
+                                {/* Hover action buttons */}
+                                <div className="absolute top-0.5 right-0.5 z-20 hidden group-hover/openblock:flex gap-0.5 rounded-sm p-0.5 bg-muted/60">
+                                  <button
+                                    title="Upraviť"
+                                    className="rounded p-0.5 hover:bg-muted transition-colors text-muted-foreground"
+                                    onClick={() => openEditRule({ id: os.id, ruleId: os.ruleId ?? null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: !!os.isRule })}
+                                  >
+                                    <Pencil className="size-3" />
+                                  </button>
+                                  <button
+                                    title="Odstrániť"
+                                    className="rounded p-0.5 hover:bg-red-400/40 transition-colors text-destructive"
+                                    onClick={() => handleDelete(os.id, !!os.isRule, os.ruleId)}
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </button>
+                                </div>
                                 <div className="font-medium text-muted-foreground leading-tight">Voľná</div>
                                 <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (
@@ -1087,6 +1129,13 @@ export function AdminMonthCalendar({
         defaultDate={defaultDate}
         defaultStartTime={defaultStartTime}
         defaultEndTime={defaultEndTime}
+      />
+      <OfferShiftDialog
+        open={offerDialogOpen}
+        onOpenChange={setOfferDialogOpen}
+        defaultDate={offerDate}
+        defaultStartTime={offerStartTime}
+        defaultEndTime={offerEndTime}
       />
     </>
   )

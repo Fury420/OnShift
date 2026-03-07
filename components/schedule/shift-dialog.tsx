@@ -98,7 +98,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   useEffect(() => {
     if (open) {
       if (shift) {
-        setUserId(fixedUserId ?? shift.userId ?? OPEN_SHIFT_VALUE)
+        setUserId(fixedUserId ?? (shift.userId || OPEN_SHIFT_VALUE))
         setFrequency(shift.frequency === "monthly" ? "weekly" : shift.frequency)
         setDate(shift.date ?? "")
         setSelectedDays(shift.days ? shift.days.split(",").map(Number) : [])

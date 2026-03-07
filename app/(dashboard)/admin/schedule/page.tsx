@@ -226,6 +226,8 @@ export default async function AdminSchedulePage({
               startTime: shortTime(s.startTime),
               endTime: shortTime(s.endTime),
               note: s.note,
+              isRule: false,
+              ruleId: null,
               claims: claimsForShift.map((c) => {
                 const emp = colorMap.get(c.claimedByUserId)
                 return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
@@ -241,6 +243,8 @@ export default async function AdminSchedulePage({
             startTime: ri.startTime,
             endTime: ri.endTime,
             note: ri.note,
+            isRule: true,
+            ruleId: ri.ruleId,
             claims: [] as { claimId: string; userId: string; userName: string; color: string }[],
           })),
       ]
