@@ -70,6 +70,8 @@ interface ShiftDialogProps {
   employees: EmployeeOption[]
   shift?: ShiftRuleForEdit
   defaultDate?: string
+  defaultStartTime?: string
+  defaultEndTime?: string
 }
 
 function toDateStr(d: Date): string {
@@ -114,7 +116,7 @@ function DatePickerField({ value, onChange, label, minDate }: { value: string; o
   )
 }
 
-export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate }: ShiftDialogProps) {
+export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate, defaultStartTime, defaultEndTime }: ShiftDialogProps) {
   const isEdit = !!shift
 
   const [userId, setUserId] = useState("")
@@ -150,14 +152,14 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate 
         setSelectedDays([])
         setValidFrom("")
         setValidUntil("")
-        setStartTime("16:00")
-        setEndTime("21:00")
-        setAllDay(true)
+        setStartTime(defaultStartTime ?? "16:00")
+        setEndTime(defaultEndTime ?? "21:00")
+        setAllDay(!defaultStartTime)
         setNote("")
       }
       setError("")
     }
-  }, [open, shift, defaultDate, employees])
+  }, [open, shift, defaultDate, defaultStartTime, defaultEndTime, employees])
 
   function toggleDay(day: number) {
     setSelectedDays((prev) =>

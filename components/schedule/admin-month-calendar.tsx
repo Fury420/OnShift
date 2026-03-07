@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Plus, Send } from "lucide-react"
@@ -14,8 +14,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift-dialog"
-import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftClaim, rejectShiftClaim, approveShiftRequest, rejectShiftRequest } from "@/app/actions/schedule"
-import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus } from "@/app/actions/shift-rules"
+import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftClaim, rejectShiftClaim, approveShiftRequest, rejectShiftRequest, updateShift } from "@/app/actions/schedule"
+import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
 import { Check, X } from "lucide-react"
 import { toast } from "sonner"
 
@@ -103,6 +103,38 @@ function assignLanes<T extends { startTime: string; endTime: string }>(items: T[
   return items.map((item, i) => ({ item, lane: result[i].lane, totalLanes }))
 }
 
+function snapTo15(minutes: number): number {
+  return Math.round(minutes / 15) * 15
+}
+
+function minutesToTime(m: number): string {
+  const h = Math.floor(m / 60)
+  const min = m % 60
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`
+}
+
+type DragMode = "create" | "resize-top" | "resize-bottom" | "move"
+
+interface DragState {
+  mode: DragMode
+  date: string
+  startMinutes: number
+  currentMinutes: number
+  anchorMinutes: number // for create: the initial click point; for move: offset from block top
+  // for resize/move of existing shifts:
+  shiftId?: string
+  isRule?: boolean
+  ruleId?: string | null
+  originalStart?: number
+  originalEnd?: number
+}
+
+interface DragPreview {
+  date: string
+  topMinutes: number
+  bottomMinutes: number
+}
+
 export function AdminMonthCalendar({
   weeks,
   employees,
@@ -121,7 +153,164 @@ export function AdminMonthCalendar({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ShiftRuleForEdit | undefined>()
   const [defaultDate, setDefaultDate] = useState<string | undefined>()
+  const [defaultStartTime, setDefaultStartTime] = useState<string | undefined>()
+  const [defaultEndTime, setDefaultEndTime] = useState<string | undefined>()
   const [isPending, startTransition] = useTransition()
+
+  // Drag state
+  const dragRef = useRef<DragState | null>(null)
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
+
+  // Drag handlers — these need access to startHour/PAD which are computed in render,
+  // so we store them in a ref that's updated each render.
+  const layoutRef = useRef({ startHour: 8, PAD: 20 })
+
+  const getMinutesFromY = useCallback((y: number, containerRect: DOMRect) => {
+    const { startHour, PAD } = layoutRef.current
+    const relY = y - containerRect.top
+    const minutes = startHour * 60 + ((relY - PAD) / HOUR_HEIGHT) * 60
+    return snapTo15(Math.max(0, minutes))
+  }, [])
+
+  const pendingDragRef = useRef<{ startX: number; startY: number; args: [string, DragMode, AdminCalendarShift?] } | null>(null)
+
+  const startDrag = useCallback((date: string, mode: DragMode, clientY: number, shift?: AdminCalendarShift) => {
+    const col = timelineRef.current?.querySelector(`[data-day-col="${date}"]`) as HTMLElement | null
+    if (!col) return
+    const rect = col.getBoundingClientRect()
+    const minutes = getMinutesFromY(clientY, rect)
+
+    if (mode === "create") {
+      dragRef.current = { mode, date, startMinutes: minutes, currentMinutes: minutes, anchorMinutes: minutes }
+      setDragPreview({ date, topMinutes: minutes, bottomMinutes: minutes + 15 })
+    } else if (shift) {
+      const origStart = timeToMinutes(shift.startTime)
+      const origEnd = timeToMinutes(shift.endTime)
+      if (mode === "move") {
+        const anchorOffset = minutes - origStart
+        dragRef.current = { mode, date, startMinutes: origStart, currentMinutes: minutes, anchorMinutes: anchorOffset, shiftId: shift.id, isRule: shift.isRule, ruleId: shift.ruleId, originalStart: origStart, originalEnd: origEnd }
+      } else {
+        dragRef.current = { mode, date, startMinutes: mode === "resize-top" ? origStart : origEnd, currentMinutes: minutes, anchorMinutes: minutes, shiftId: shift.id, isRule: shift.isRule, ruleId: shift.ruleId, originalStart: origStart, originalEnd: origEnd }
+      }
+      setDragPreview({ date, topMinutes: origStart, bottomMinutes: origEnd })
+    }
+  }, [getMinutesFromY])
+
+  const handleDragMouseDown = useCallback((
+    e: React.MouseEvent,
+    date: string,
+    mode: DragMode,
+    shift?: AdminCalendarShift,
+  ) => {
+    if (e.button !== 0) return
+
+    if (mode === "create" || mode === "resize-top" || mode === "resize-bottom") {
+      // Start drag immediately for create and resize
+      e.preventDefault()
+      e.stopPropagation()
+      startDrag(date, mode, e.clientY, shift)
+    } else {
+      // For move: defer until mouse moves 4px (so clicks still open dropdown)
+      pendingDragRef.current = { startX: e.clientX, startY: e.clientY, args: [date, mode, shift] }
+    }
+  }, [startDrag])
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      // Check pending move drag threshold
+      const pending = pendingDragRef.current
+      if (pending) {
+        const dx = e.clientX - pending.startX
+        const dy = e.clientY - pending.startY
+        if (Math.abs(dx) + Math.abs(dy) > 4) {
+          const [date, mode, shift] = pending.args
+          pendingDragRef.current = null
+          startDrag(date, mode, e.clientY, shift)
+        }
+        return
+      }
+
+      const drag = dragRef.current
+      if (!drag) return
+
+      const col = timelineRef.current?.querySelector(`[data-day-col="${drag.date}"]`) as HTMLElement | null
+      if (!col) return
+      const rect = col.getBoundingClientRect()
+      const minutes = getMinutesFromY(e.clientY, rect)
+      drag.currentMinutes = minutes
+
+      if (drag.mode === "create") {
+        const top = Math.min(drag.anchorMinutes, minutes)
+        const bottom = Math.max(drag.anchorMinutes, minutes)
+        setDragPreview({ date: drag.date, topMinutes: top, bottomMinutes: Math.max(bottom, top + 15) })
+      } else if (drag.mode === "resize-top") {
+        const bottom = drag.originalEnd!
+        setDragPreview({ date: drag.date, topMinutes: Math.min(minutes, bottom - 15), bottomMinutes: bottom })
+      } else if (drag.mode === "resize-bottom") {
+        const top = drag.originalStart!
+        setDragPreview({ date: drag.date, topMinutes: top, bottomMinutes: Math.max(minutes, top + 15) })
+      } else if (drag.mode === "move") {
+        const duration = drag.originalEnd! - drag.originalStart!
+        const newStart = snapTo15(minutes - drag.anchorMinutes)
+        setDragPreview({ date: drag.date, topMinutes: Math.max(0, newStart), bottomMinutes: Math.max(0, newStart) + duration })
+      }
+    }
+
+    function onMouseUp() {
+      pendingDragRef.current = null
+      const drag = dragRef.current
+      if (!drag) return
+      dragRef.current = null
+
+      setDragPreview(prev => {
+        if (!prev) return null
+
+        // Use setTimeout to schedule state updates outside the setState callback
+        const startTime = minutesToTime(prev.topMinutes)
+        const endTime = minutesToTime(prev.bottomMinutes)
+
+        setTimeout(() => {
+          if (drag.mode === "create") {
+            if (prev.bottomMinutes - prev.topMinutes >= 15) {
+              setEditing(undefined)
+              setDefaultDate(drag.date)
+              setDefaultStartTime(startTime)
+              setDefaultEndTime(endTime)
+              setDialogOpen(true)
+            }
+          } else if (drag.mode === "resize-top" || drag.mode === "resize-bottom" || drag.mode === "move") {
+            if (startTime !== minutesToTime(drag.originalStart!) || endTime !== minutesToTime(drag.originalEnd!)) {
+              if (drag.isRule && drag.ruleId) {
+                startTransition(() => modifyRuleInstance(drag.ruleId!, drag.date, { startTime, endTime }))
+              } else if (drag.shiftId) {
+                startTransition(async () => {
+                  try {
+                    const day = weeks.flat().find(d => d.date === drag.date)
+                    const shift = day?.shifts.find(s => s.id === drag.shiftId)
+                    if (shift) {
+                      await updateShift(drag.shiftId!, { userId: shift.userId || null, date: drag.date, startTime, endTime, note: shift.note || undefined })
+                    }
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Chyba pri presune")
+                  }
+                })
+              }
+            }
+          }
+        }, 0)
+
+        return null
+      })
+    }
+
+    window.addEventListener("mousemove", onMouseMove)
+    window.addEventListener("mouseup", onMouseUp)
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove)
+      window.removeEventListener("mouseup", onMouseUp)
+    }
+  }, [getMinutesFromY, startDrag, weeks, startTransition])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
   const weekLabel = (() => {
@@ -150,9 +339,11 @@ export function AdminMonthCalendar({
     ),
   )]
 
-  function openCreate(date?: string) {
+  function openCreate(date?: string, startTime?: string, endTime?: string) {
     setEditing(undefined)
     setDefaultDate(date)
+    setDefaultStartTime(startTime)
+    setDefaultEndTime(endTime)
     setDialogOpen(true)
   }
 
@@ -632,13 +823,14 @@ export function AdminMonthCalendar({
             startHour = 8; endHour = 22
           }
           const PAD = 20
+          layoutRef.current = { startHour, PAD }
           const totalHeight = (endHour - startHour) * HOUR_HEIGHT + PAD * 2
           const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
           const yPos = (time: string) => PAD + ((timeToMinutes(time) - startHour * 60) / 60) * HOUR_HEIGHT
           const hPos = (start: string, end: string) => yPos(end) - yPos(start)
 
           return (
-            <div className="rounded-xl border overflow-hidden">
+            <div className="rounded-xl border overflow-hidden" ref={timelineRef}>
               {/* Header */}
               <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/50 border-b">
                 <div />
@@ -683,17 +875,22 @@ export function AdminMonthCalendar({
                   return (
                     <div
                       key={day.date}
-                      className={cn("relative border-l cursor-pointer", day.isToday && "bg-primary/5", !day.isCurrentMonth && "bg-muted/20")}
+                      data-day-col={day.date}
+                      className={cn("relative border-l cursor-crosshair select-none", day.isToday && "bg-primary/5", !day.isCurrentMonth && "bg-muted/20")}
                       style={{ height: totalHeight }}
-                      onClick={() => openCreate(day.date)}
+                      onMouseDown={(e) => {
+                        if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute("data-grid-line")) {
+                          handleDragMouseDown(e, day.date, "create")
+                        }
+                      }}
                     >
                       {/* Hour grid lines */}
                       {hours.map((h) => (
-                        <div key={h} className="absolute left-0 right-0 border-t border-muted/40" style={{ top: PAD + (h - startHour) * HOUR_HEIGHT }} />
+                        <div key={h} data-grid-line className="absolute left-0 right-0 border-t border-muted/40 pointer-events-none" style={{ top: PAD + (h - startHour) * HOUR_HEIGHT }} />
                       ))}
 
                       {/* Shift blocks */}
-                      <div className="absolute inset-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="absolute inset-0 pointer-events-none">
                         {lanes.map(({ item, lane, totalLanes }) => {
                           const top = yPos(item.startTime)
                           const height = Math.max(hPos(item.startTime, item.endTime), 24)
@@ -705,9 +902,9 @@ export function AdminMonthCalendar({
                             return (
                               <DropdownMenu key={shift.id}>
                                 <DropdownMenuTrigger asChild>
-                                  <button
+                                  <div
                                     className={cn(
-                                      "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left hover:opacity-80 transition-opacity overflow-hidden",
+                                      "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left hover:opacity-80 transition-opacity overflow-hidden cursor-grab group/block pointer-events-auto",
                                       shift.status === "draft" && "opacity-60",
                                     )}
                                     style={{
@@ -716,7 +913,21 @@ export function AdminMonthCalendar({
                                       borderLeft: `3px ${shift.status === "draft" ? "dashed" : "solid"} ${shift.color}`,
                                       color: shift.color,
                                     }}
+                                    onMouseDown={(e) => {
+                                      // Only start move drag on left click, not on resize handles
+                                      if (e.button !== 0 || (e.target as HTMLElement).dataset.resizeHandle) return
+                                      // Don't preventDefault — let click events through for dropdown
+                                      handleDragMouseDown(e, day.date, "move", shift)
+                                    }}
                                   >
+                                    {/* Resize handle top */}
+                                    <div
+                                      data-resize-handle="top"
+                                      className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 group-hover/block:opacity-100 hover:!opacity-100"
+                                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDragMouseDown(e, day.date, "resize-top", shift) }}
+                                    >
+                                      <div className="mx-auto mt-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
+                                    </div>
                                     <div className="font-semibold truncate leading-tight">{shift.userName}</div>
                                     <div className="opacity-80 leading-tight text-[10px]">
                                       {shift.startTime}–{shift.endTime}
@@ -725,7 +936,15 @@ export function AdminMonthCalendar({
                                     {shift.note && height > 48 && (
                                       <div className="opacity-60 truncate mt-0.5 text-[10px]">{shift.note}</div>
                                     )}
-                                  </button>
+                                    {/* Resize handle bottom */}
+                                    <div
+                                      data-resize-handle="bottom"
+                                      className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize z-10 opacity-0 group-hover/block:opacity-100 hover:!opacity-100"
+                                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDragMouseDown(e, day.date, "resize-bottom", shift) }}
+                                    >
+                                      <div className="mx-auto mb-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
+                                    </div>
+                                  </div>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
                                   {!(shift.isRule && shift.status === "published") && (
@@ -753,7 +972,7 @@ export function AdminMonthCalendar({
                             return (
                               <div
                                 key={os.id}
-                                className="absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden"
+                                className="absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden pointer-events-auto"
                                 style={{ top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)` }}
                               >
                                 <div className="font-medium text-muted-foreground leading-tight">Voľná</div>
@@ -776,7 +995,7 @@ export function AdminMonthCalendar({
                             return (
                               <div
                                 key={rs.id}
-                                className="absolute rounded-md border border-dashed border-amber-400/60 px-1.5 py-0.5 text-xs bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden"
+                                className="absolute rounded-md border border-dashed border-amber-400/60 px-1.5 py-0.5 text-xs bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden pointer-events-auto"
                                 style={{ top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)` }}
                               >
                                 <div className="font-medium truncate leading-tight" style={{ color: rs.color }}>{rs.userName.split(" ")[0]} ⏳</div>
@@ -791,6 +1010,21 @@ export function AdminMonthCalendar({
 
                           return null
                         })}
+
+                        {/* Drag preview ghost */}
+                        {dragPreview && dragPreview.date === day.date && (
+                          <div
+                            className="absolute left-1 right-1 rounded-md border-2 border-dashed border-primary/60 bg-primary/10 pointer-events-none z-20"
+                            style={{
+                              top: yPos(minutesToTime(dragPreview.topMinutes)),
+                              height: Math.max(((dragPreview.bottomMinutes - dragPreview.topMinutes) / 60) * HOUR_HEIGHT, 12),
+                            }}
+                          >
+                            <div className="px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                              {minutesToTime(dragPreview.topMinutes)}–{minutesToTime(dragPreview.bottomMinutes)}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -807,6 +1041,8 @@ export function AdminMonthCalendar({
         employees={employees}
         shift={editing}
         defaultDate={defaultDate}
+        defaultStartTime={defaultStartTime}
+        defaultEndTime={defaultEndTime}
       />
     </>
   )
