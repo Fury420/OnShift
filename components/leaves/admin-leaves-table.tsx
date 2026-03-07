@@ -6,7 +6,7 @@ import { Check, X, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { DatePicker } from "@/components/ui/date-picker"
+import { DateRangePicker } from "@/components/ui/date-picker"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
@@ -230,19 +230,13 @@ export function AdminLeavesTable({ rows }: Props) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <DatePicker
-                  label="Dátum od"
-                  value={editState.startDate}
-                  onChange={(v) => setEditState({ ...editState, startDate: v })}
-                />
-                <DatePicker
-                  label="Dátum do"
-                  value={editState.endDate}
-                  onChange={(v) => setEditState({ ...editState, endDate: v })}
-                  minDate={editState.startDate}
-                />
-              </div>
+              <DateRangePicker
+                label="Obdobie"
+                valueFrom={editState.startDate}
+                valueTo={editState.endDate}
+                onChangeFrom={(v) => setEditState({ ...editState, startDate: v })}
+                onChangeTo={(v) => setEditState({ ...editState, endDate: v })}
+              />
               <div className="flex flex-col gap-1.5">
                 <Label>Poznámka</Label>
                 <Textarea

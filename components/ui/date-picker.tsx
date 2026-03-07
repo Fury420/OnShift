@@ -1,5 +1,6 @@
 "use client"
 
+import { useRef, useCallback } from "react"
 import { format } from "date-fns"
 import { sk } from "date-fns/locale"
 import { CalendarIcon } from "lucide-react"
@@ -59,7 +60,7 @@ export function DatePicker({
             {selected ? format(selected, "d. M. yyyy", { locale: sk }) : placeholder}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0" align="start" side="bottom" avoidCollisions={false}>
           <Calendar
             mode="single"
             selected={selected}
@@ -101,6 +102,41 @@ export function DateRangePicker({
   const selected: DateRange | undefined =
     from || to ? { from, to } : undefined
 
+  // Track click cycle: "from" → "to" → "from" → ...
+  const selectingRef = useRef<"from" | "to">(from && !to ? "to" : "from")
+
+  // Reset cycle when popover opens
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      // If both dates are set, next click starts a new range
+      if (from && to) selectingRef.current = "from"
+      // If only from is set, next click selects end
+      else if (from) selectingRef.current = "to"
+      else selectingRef.current = "from"
+    }
+  }, [from, to])
+
+  const handleSelect = useCallback((range: DateRange | undefined) => {
+    if (!range?.from) {
+      onChangeFrom("")
+      onChangeTo("")
+      selectingRef.current = "from"
+      return
+    }
+
+    if (selectingRef.current === "from") {
+      // 1st/3rd click: set start, clear end
+      onChangeFrom(toDateStr(range.from))
+      onChangeTo("")
+      selectingRef.current = "to"
+    } else {
+      // 2nd/4th click: set end (react-day-picker already sorts from/to)
+      onChangeFrom(range.from ? toDateStr(range.from) : "")
+      onChangeTo(range.to ? toDateStr(range.to) : "")
+      if (range.to) selectingRef.current = "from"
+    }
+  }, [onChangeFrom, onChangeTo])
+
   const displayText =
     from && to
       ? `${format(from, "d. M. yyyy", { locale: sk })} - ${format(to, "d. M. yyyy", { locale: sk })}`
@@ -111,7 +147,7 @@ export function DateRangePicker({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label && <Label>{label}</Label>}
-      <Popover>
+      <Popover onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -124,14 +160,11 @@ export function DateRangePicker({
             {displayText}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0" align="start" side="bottom" avoidCollisions={false}>
           <Calendar
             mode="range"
             selected={selected}
-            onSelect={(range) => {
-              onChangeFrom(range?.from ? toDateStr(range.from) : "")
-              onChangeTo(range?.to ? toDateStr(range.to) : "")
-            }}
+            onSelect={handleSelect}
             numberOfMonths={2}
             locale={sk}
             weekStartsOn={1}

@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { DatePicker } from "@/components/ui/date-picker"
+import { DateRangePicker } from "@/components/ui/date-picker"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -121,19 +121,13 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <DatePicker
-              label="Dátum od"
-              value={startDate}
-              onChange={setStartDate}
-            />
-            <DatePicker
-              label="Dátum do"
-              value={endDate}
-              onChange={setEndDate}
-              minDate={startDate}
-            />
-          </div>
+          <DateRangePicker
+            label="Obdobie"
+            valueFrom={startDate}
+            valueTo={endDate}
+            onChangeFrom={setStartDate}
+            onChangeTo={setEndDate}
+          />
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="note">Poznámka (nepovinná)</Label>
