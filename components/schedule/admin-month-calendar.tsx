@@ -31,6 +31,7 @@ export interface AdminCalendarShift {
   status: "requested" | "draft" | "open" | "published"
   color: string
   isRule: boolean
+  isRecurring?: boolean
   exceptionId?: string
 }
 
@@ -496,8 +497,8 @@ export function AdminMonthCalendar({
               Nová zmena
             </Button>
             <div className="flex rounded-md border p-0.5 gap-0.5">
-              <Button variant={view === "month" ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setView("month")}>Mesiac</Button>
               <Button variant={view === "week" ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setView("week")}>Týždeň</Button>
+              <Button variant={view === "month" ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setView("month")}>Mesiac</Button>
             </div>
           </div>
         </div>
@@ -562,8 +563,8 @@ export function AdminMonthCalendar({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          {!(shift.isRule && shift.status === "published") && (
-                            <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRule ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
+                          {!(shift.isRecurring && shift.status === "published") && (
+                            <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
                           )}
                           {shift.status !== "open" && (
                             <DropdownMenuItem onClick={() => handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId)} disabled={isPending}>
@@ -571,12 +572,12 @@ export function AdminMonthCalendar({
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
-                          {shift.isRule && (
+                          {shift.isRecurring && (
                             <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
                           )}
-                          {!(shift.isRule && shift.status === "published") && (
+                          {!(shift.isRecurring && shift.status === "published") && (
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>
-                              {shift.isRule ? "Zmazať pravidlo" : "Odstrániť"}
+                              {shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -731,8 +732,8 @@ export function AdminMonthCalendar({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      {!(shift.isRule && shift.status === "published") && (
-                        <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRule ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
+                      {!(shift.isRecurring && shift.status === "published") && (
+                        <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
                       )}
                       {shift.status !== "open" && (
                         <DropdownMenuItem onClick={() => handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId)} disabled={isPending}>
@@ -740,12 +741,12 @@ export function AdminMonthCalendar({
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
-                      {shift.isRule && (
+                      {shift.isRecurring && (
                         <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
                       )}
-                      {!(shift.isRule && shift.status === "published") && (
+                      {!(shift.isRecurring && shift.status === "published") && (
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>
-                          {shift.isRule ? "Odstrániť pravidlo" : "Odstrániť"}
+                          {shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>
@@ -950,8 +951,8 @@ export function AdminMonthCalendar({
                                   </div>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start">
-                                  {!(shift.isRule && shift.status === "published") && (
-                                    <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRule ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
+                                  {!(shift.isRecurring && shift.status === "published") && (
+                                    <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
                                   )}
                                   {shift.status !== "open" && (
                                     <DropdownMenuItem onClick={() => handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId)} disabled={isPending}>
@@ -959,11 +960,11 @@ export function AdminMonthCalendar({
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuSeparator />
-                                  {shift.isRule && (
+                                  {shift.isRecurring && (
                                     <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
                                   )}
-                                  {!(shift.isRule && shift.status === "published") && (
-                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>{shift.isRule ? "Odstrániť pravidlo" : "Odstrániť"}</DropdownMenuItem>
+                                  {!(shift.isRecurring && shift.status === "published") && (
+                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>{shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}</DropdownMenuItem>
                                   )}
                                 </DropdownMenuContent>
                               </DropdownMenu>

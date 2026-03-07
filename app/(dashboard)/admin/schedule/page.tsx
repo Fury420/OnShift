@@ -172,6 +172,7 @@ export default async function AdminSchedulePage({
             status: ri.status,
             color: emp?.color ?? "#6b7280",
             isRule: true,
+            isRecurring: ri.frequency !== "once",
             exceptionId: ri.exceptionId,
           }
         })

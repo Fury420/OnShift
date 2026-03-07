@@ -262,18 +262,18 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
         <div className="flex rounded-md border p-0.5 gap-0.5">
           <Button
-            variant={view === "month" ? "secondary" : "ghost"}
-            size="sm" className="h-7 px-3 text-xs"
-            onClick={() => setView("month")}
-          >
-            Mesiac
-          </Button>
-          <Button
             variant={view === "week" ? "secondary" : "ghost"}
             size="sm" className="h-7 px-3 text-xs"
             onClick={() => setView("week")}
           >
             Týždeň
+          </Button>
+          <Button
+            variant={view === "month" ? "secondary" : "ghost"}
+            size="sm" className="h-7 px-3 text-xs"
+            onClick={() => setView("month")}
+          >
+            Mesiac
           </Button>
         </div>
       </div>

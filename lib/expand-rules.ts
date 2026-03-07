@@ -49,6 +49,7 @@ export interface ShiftInstance {
   status: "requested" | "draft" | "open" | "published"
   isException: boolean    // true if this instance was modified by an exception
   exceptionId?: string
+  frequency: "once" | "weekly" | "monthly"
 }
 
 /**
@@ -120,6 +121,7 @@ export function expandRules(
         status: rule.status,
         isException: !!ex,
         exceptionId: ex?.id,
+        frequency: rule.frequency,
       })
     }
   }
