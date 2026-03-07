@@ -52,9 +52,9 @@ export function RequestTabs({
 
   return (
     <>
-      <p className="text-sm text-muted-foreground mt-1">
-        {isAdmin ? "Admin schvaľovanie" : "Môj prehľad"}
-      </p>
+      {isAdmin && (
+        <p className="text-sm text-muted-foreground mt-1">Admin schvaľovanie</p>
+      )}
 
       <Tabs defaultValue="dovolenky" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2 lg:w-auto lg:inline-flex">
@@ -74,12 +74,10 @@ export function RequestTabs({
               <CardTitle className="text-base">
                 {isAdmin ? "Žiadosti o voľno na schválenie" : "Moje žiadosti o voľno"}
               </CardTitle>
-              {!isAdmin && (
-                <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-                  <Plus className="size-4" />
-                  Nová žiadosť
-                </Button>
-              )}
+              <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
+                <Plus className="size-4" />
+                Nová žiadosť
+              </Button>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               {isAdmin ? (
@@ -97,7 +95,6 @@ export function RequestTabs({
                     </div>
                   )}
                   <div className="flex flex-col gap-2">
-                    <p className="text-sm font-medium">Moje žiadosti o voľno</p>
                     {leaves.length === 0 && leavesToApproveAsReplacement.length === 0 ? (
                       <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
                     ) : leaves.length === 0 ? (
@@ -113,53 +110,85 @@ export function RequestTabs({
         </TabsContent>
 
         <TabsContent value="vymeny" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
-              <CardTitle className="text-base">
-                {isAdmin ? "Žiadosti o výmenu na schválenie" : "Výmeny zmien"}
-              </CardTitle>
-              {!isAdmin && (
-                <Button size="sm" variant="outline" onClick={() => setReplacementDialogOpen(true)}>
-                  <Plus className="size-4" />
-                  Požiadať o zastup
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              {isAdmin ? (
-                allPendingRequests.length === 0 ? (
-                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
-                ) : (
-                  <AdminReplacementsTable requests={allPendingRequests} />
-                )
-              ) : (
-                <>
-                  {incomingRequests.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm text-muted-foreground">Kolegovia ťa navrhli ako náhradníka.</p>
-                      <IncomingRequestsTable requests={incomingRequests} />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-medium">Moje žiadosti</p>
-                    {myRequests.length === 0 && incomingRequests.length === 0 ? (
-                      <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
-                    ) : myRequests.length === 0 ? (
-                      <p className="py-4 text-center text-muted-foreground text-sm">{EMPTY_MESSAGE}</p>
-                    ) : (
-                      <MyRequestsTable
-                        requests={myRequests}
-                        monthLabel={monthLabel}
-                        prevMonth={prevMonth}
-                        nextMonth={nextMonth}
-                        isCurrentMonth={isCurrentMonth}
-                      />
-                    )}
+          <div className="flex flex-col gap-4">
+            {!isAdmin && myShifts.length > 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+                  <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => setReplacementDialogOpen(true)}>
+                    <Plus className="size-4" />
+                    Požiadať o zastup
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border divide-y">
+                    {myShifts.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                        <span>{s.label}</span>
+                      </div>
+                    ))}
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {!isAdmin && myShifts.length === 0 && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+                  <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                  <Button size="sm" variant="outline" disabled>
+                    <Plus className="size-4" />
+                    Požiadať o zastup
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="py-6 text-center text-muted-foreground text-sm">Žiadne nadchádzajúce zmeny.</p>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {isAdmin ? "Žiadosti o výmenu na schválenie" : "Žiadosti o zastup"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-6">
+                {isAdmin ? (
+                  allPendingRequests.length === 0 ? (
+                    <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                  ) : (
+                    <AdminReplacementsTable requests={allPendingRequests} />
+                  )
+                ) : (
+                  <>
+                    {incomingRequests.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-sm font-medium">Požiadali ťa o zastup</p>
+                        <IncomingRequestsTable requests={incomingRequests} />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-medium">Moje žiadosti</p>
+                      {myRequests.length === 0 && incomingRequests.length === 0 ? (
+                        <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                      ) : myRequests.length === 0 ? (
+                        <p className="py-4 text-center text-muted-foreground text-sm">{EMPTY_MESSAGE}</p>
+                      ) : (
+                        <MyRequestsTable
+                          requests={myRequests}
+                          monthLabel={monthLabel}
+                          prevMonth={prevMonth}
+                          nextMonth={nextMonth}
+                          isCurrentMonth={isCurrentMonth}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
