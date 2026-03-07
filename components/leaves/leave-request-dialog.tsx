@@ -9,8 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -122,26 +122,17 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="startDate">Dátum od</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="endDate">Dátum do</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
-            </div>
+            <DatePicker
+              label="Dátum od"
+              value={startDate}
+              onChange={setStartDate}
+            />
+            <DatePicker
+              label="Dátum do"
+              value={endDate}
+              onChange={setEndDate}
+              minDate={startDate}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

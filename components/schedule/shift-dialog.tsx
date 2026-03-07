@@ -1,9 +1,6 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
-import { format } from "date-fns"
-import { sk } from "date-fns/locale"
-import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,8 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { createShiftRule, updateShiftRule } from "@/app/actions/shift-rules"
 import { cn } from "@/lib/utils"
 
@@ -79,41 +75,6 @@ function toDateStr(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day}`
-}
-
-function parseDate(s: string): Date | undefined {
-  if (!s) return undefined
-  const [y, m, d] = s.split("-").map(Number)
-  return new Date(y, m - 1, d)
-}
-
-function DatePickerField({ value, onChange, label, minDate }: { value: string; onChange: (v: string) => void; label: string; minDate?: string }) {
-  const selected = parseDate(value)
-  const fromDate = minDate ? parseDate(minDate) : undefined
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label>{label}</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}>
-            <CalendarIcon className="mr-2 size-4" />
-            {selected ? format(selected, "d. M. yyyy", { locale: sk }) : "Vyberte dátum"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={selected}
-            onSelect={(d) => { if (d) onChange(toDateStr(d)) }}
-            fromDate={fromDate}
-            locale={sk}
-            weekStartsOn={1}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
-  )
 }
 
 export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate, defaultStartTime, defaultEndTime }: ShiftDialogProps) {
@@ -300,7 +261,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
 
           {/* Date — once */}
           {frequency === "once" && (
-            <DatePickerField value={date} onChange={setDate} label="Dátum" />
+            <DatePicker value={date} onChange={setDate} label="Dátum" />
           )}
 
           {/* Days — weekly */}
@@ -345,8 +306,8 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <DatePickerField value={validFrom} onChange={setValidFrom} label="Od" />
-                <DatePickerField value={validUntil} onChange={setValidUntil} label="Do" minDate={validFrom} />
+                <DatePicker value={validFrom} onChange={setValidFrom} label="Od" />
+                <DatePicker value={validUntil} onChange={setValidUntil} label="Do" minDate={validFrom} />
               </div>
             </div>
           )}
