@@ -71,6 +71,7 @@ export function DatePicker({
             fromDate={fromDate}
             locale={sk}
             weekStartsOn={1}
+            className="p-2 [--cell-size:1.6rem]"
           />
         </PopoverContent>
       </Popover>
@@ -124,18 +125,35 @@ export function DateRangePicker({
       return
     }
 
+    // Klik do stredu už vybraného obdobia → ten deň sa stane nový start
+    if (from && to) {
+      if (!range.to) {
+        onChangeFrom(toDateStr(range.from))
+        onChangeTo("")
+        selectingRef.current = "to"
+        return
+      }
+      const fromInMiddle = range.from > from && range.from < to
+      const toInMiddle = range.to > from && range.to < to
+      if (fromInMiddle || toInMiddle) {
+        const newStart = fromInMiddle ? range.from : range.to
+        onChangeFrom(toDateStr(newStart))
+        onChangeTo("")
+        selectingRef.current = "to"
+        return
+      }
+    }
+
     if (selectingRef.current === "from") {
-      // 1st/3rd click: set start, clear end
       onChangeFrom(toDateStr(range.from))
       onChangeTo("")
       selectingRef.current = "to"
     } else {
-      // 2nd/4th click: set end (react-day-picker already sorts from/to)
       onChangeFrom(range.from ? toDateStr(range.from) : "")
       onChangeTo(range.to ? toDateStr(range.to) : "")
       if (range.to) selectingRef.current = "from"
     }
-  }, [onChangeFrom, onChangeTo])
+  }, [onChangeFrom, onChangeTo, from, to])
 
   const displayText =
     from && to
@@ -168,6 +186,7 @@ export function DateRangePicker({
             numberOfMonths={2}
             locale={sk}
             weekStartsOn={1}
+            className="p-2 [--cell-size:1.6rem]"
           />
         </PopoverContent>
       </Popover>
