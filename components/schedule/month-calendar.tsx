@@ -11,6 +11,7 @@ import type { ColleagueOption } from "@/components/shift-replacement/request-dia
 import { claimShift } from "@/app/actions/schedule"
 import { toast } from "sonner"
 import { RequestShiftDialog } from "./request-shift-dialog"
+import { ShiftDialog } from "./shift-dialog"
 
 export interface CalendarShift {
   id: string
@@ -65,6 +66,8 @@ interface MonthCalendarProps {
   allEmployees: ColleagueOption[]
   businessHours?: Map<string, BusinessHoursEntry>
   currentUserId?: string
+  /** Ak true (admin), zobrazí tlačidlo „Nová zmena“ a ShiftDialog namiesto len žiadosti o zmenu */
+  canCreateShifts?: boolean
 }
 
 interface LeaveContext {
@@ -114,7 +117,7 @@ interface DragPreview {
   bottomMinutes: number
 }
 
-export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmployees, businessHours, currentUserId }: MonthCalendarProps) {
+export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmployees, businessHours, currentUserId, canCreateShifts }: MonthCalendarProps) {
   const router = useRouter()
   const [view, setView] = useState<"month" | "week">("week")
   const [weekIdx, setWeekIdx] = useState(() => {
@@ -126,6 +129,10 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   const [requestDate, setRequestDate] = useState<string | null>(null)
   const [requestStartTime, setRequestStartTime] = useState<string | undefined>()
   const [requestEndTime, setRequestEndTime] = useState<string | undefined>()
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createDate, setCreateDate] = useState<string | undefined>()
+  const [createStartTime, setCreateStartTime] = useState<string | undefined>()
+  const [createEndTime, setCreateEndTime] = useState<string | undefined>()
   const [isPending, startTransition] = useTransition()
 
   // Drag-to-create state
@@ -175,7 +182,8 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         const et = minutesToTime(prev.bottomMinutes)
         setTimeout(() => {
           if (prev.bottomMinutes - prev.topMinutes >= 15) {
-            openRequestDialog(drag.date, st, et)
+            if (canCreateShifts) openCreateDialog(drag.date, st, et)
+            else openRequestDialog(drag.date, st, et)
           }
         }, 0)
         return null
@@ -188,7 +196,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
       window.removeEventListener("mousemove", onMouseMove)
       window.removeEventListener("mouseup", onMouseUp)
     }
-  }, [getMinutesFromY])
+  }, [getMinutesFromY, canCreateShifts])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
   const weekStart = currentWeek[0]
@@ -204,6 +212,21 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     setRequestDate(date)
     setRequestStartTime(startTime)
     setRequestEndTime(endTime)
+  }
+
+  function openCreateDialog(date?: string, startTime?: string, endTime?: string) {
+    setCreateDate(date)
+    setCreateStartTime(startTime)
+    setCreateEndTime(endTime)
+    setCreateDialogOpen(true)
+  }
+
+  function closeCreateDialog() {
+    setCreateDialogOpen(false)
+    setCreateDate(undefined)
+    setCreateStartTime(undefined)
+    setCreateEndTime(undefined)
+    router.refresh()
   }
 
   function handleClaim(shiftId: string) {
@@ -260,21 +283,29 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
           </div>
         )}
 
-        <div className="flex rounded-md border p-0.5 gap-0.5">
-          <Button
-            variant={view === "week" ? "secondary" : "ghost"}
-            size="sm" className="h-7 px-3 text-xs"
-            onClick={() => setView("week")}
-          >
-            Týždeň
-          </Button>
-          <Button
-            variant={view === "month" ? "secondary" : "ghost"}
-            size="sm" className="h-7 px-3 text-xs"
-            onClick={() => setView("month")}
-          >
-            Mesiac
-          </Button>
+        <div className="flex items-center gap-2">
+          {canCreateShifts && (
+            <Button size="sm" onClick={() => openCreateDialog()}>
+              <Plus className="size-4" />
+              Nová zmena
+            </Button>
+          )}
+          <div className="flex rounded-md border p-0.5 gap-0.5">
+            <Button
+              variant={view === "week" ? "secondary" : "ghost"}
+              size="sm" className="h-7 px-3 text-xs"
+              onClick={() => setView("week")}
+            >
+              Týždeň
+            </Button>
+            <Button
+              variant={view === "month" ? "secondary" : "ghost"}
+              size="sm" className="h-7 px-3 text-xs"
+              onClick={() => setView("month")}
+            >
+              Mesiac
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -301,8 +332,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     </div>
                     <span className={cn("text-sm font-medium capitalize", !day.isCurrentMonth && "text-muted-foreground")}>{dayLabel}</span>
                   </div>
-                  {!isPast && (
-                    <button onClick={() => openRequestDialog(day.date)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground" title="Požiadať o zmenu">
+                  {!isPast && day.isCurrentMonth && (
+                    <button
+                      onClick={() => (canCreateShifts ? openCreateDialog(day.date) : openRequestDialog(day.date))}
+                      className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                      title={canCreateShifts ? "Nová zmena" : "Požiadať o zmenu"}
+                    >
                       <Plus className="size-4" />
                     </button>
                   )}
@@ -409,14 +444,20 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         {dayNum}
                       </div>
                       {!isPast && day.isCurrentMonth && (
-                        <button onClick={() => openRequestDialog(day.date)} className="opacity-0 group-hover/day:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted" title="Požiadať o zmenu">
+                        <button
+                          onClick={() => (canCreateShifts ? openCreateDialog(day.date) : openRequestDialog(day.date))}
+                          className="opacity-0 group-hover/day:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
+                          title={canCreateShifts ? "Nová zmena" : "Požiadať o zmenu"}
+                        >
                           <Plus className="size-3 text-muted-foreground" />
                         </button>
                       )}
                     </div>
                     {hasOpenHours ? (
-                      <div className={cn("rounded-md border border-dashed border-muted-foreground/25 bg-muted/10 px-1 pt-0.5 pb-1 flex flex-col gap-0.5 min-h-10", canRequest && "cursor-pointer")}
-                        onClick={canRequest ? () => openRequestDialog(day.date) : undefined}>
+                      <div
+                        className={cn("rounded-md border border-dashed border-muted-foreground/25 bg-muted/10 px-1 pt-0.5 pb-1 flex flex-col gap-0.5 min-h-10", canRequest && "cursor-pointer")}
+                        onClick={canRequest ? () => (canCreateShifts ? openCreateDialog(day.date) : openRequestDialog(day.date)) : undefined}
+                      >
                         <div className="text-[9px] text-muted-foreground/50 leading-none mb-0.5 select-none">{bh.openTime!.slice(0, 5)}–{bh.closeTime!.slice(0, 5)}</div>
                         <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>{shiftBlocks}</div>
                       </div>
@@ -631,6 +672,16 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         defaultStartTime={requestStartTime}
         defaultEndTime={requestEndTime}
       />
+      {canCreateShifts && (
+        <ShiftDialog
+          open={createDialogOpen}
+          onOpenChange={(open) => { if (!open) closeCreateDialog() }}
+          employees={allEmployees}
+          defaultDate={createDate}
+          defaultStartTime={createStartTime}
+          defaultEndTime={createEndTime}
+        />
+      )}
     </div>
   )
 }

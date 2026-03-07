@@ -259,6 +259,7 @@ export default async function SchedulePage({
       allEmployees={employees.map((e) => ({ id: e.id, name: e.name }))}
       businessHours={bhMap}
       currentUserId={session.user.id}
+      canCreateShifts={isAdmin}
     />
   )
 }
