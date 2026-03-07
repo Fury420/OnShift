@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { X, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,8 +49,13 @@ export function EmployeeLeavesTable({ rows }: Props) {
 
   function handleCancel(id: string) {
     startTransition(async () => {
-      await cancelLeave(id)
-      router.refresh()
+      try {
+        await cancelLeave(id)
+        toast.success("Žiadosť bola zrušená")
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Nepodarilo sa zrušiť žiadosť")
+      }
     })
   }
 

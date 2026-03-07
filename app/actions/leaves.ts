@@ -29,6 +29,7 @@ export async function requestLeave(data: {
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }
 
 export async function cancelLeave(id: string) {
@@ -49,6 +50,7 @@ export async function cancelLeave(id: string) {
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }
 
 export async function updateLeave(
@@ -74,6 +76,7 @@ export async function updateLeave(
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }
 
 export async function adminUpdateLeave(

@@ -68,6 +68,8 @@ interface ShiftDialogProps {
   defaultDate?: string
   defaultStartTime?: string
   defaultEndTime?: string
+  /** Ak je nastavené, výber zamestnanca sa nezobrazí a zmena sa vždy priradí tomuto používateľovi (napr. v kalendári len pre prihláseného). */
+  fixedUserId?: string
 }
 
 function toDateStr(d: Date): string {
@@ -77,7 +79,7 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate, defaultStartTime, defaultEndTime }: ShiftDialogProps) {
+export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId }: ShiftDialogProps) {
   const isEdit = !!shift
 
   const [userId, setUserId] = useState("")
@@ -96,7 +98,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   useEffect(() => {
     if (open) {
       if (shift) {
-        setUserId(shift.userId || OPEN_SHIFT_VALUE)
+        setUserId(fixedUserId ?? shift.userId ?? OPEN_SHIFT_VALUE)
         setFrequency(shift.frequency === "monthly" ? "weekly" : shift.frequency)
         setDate(shift.date ?? "")
         setSelectedDays(shift.days ? shift.days.split(",").map(Number) : [])
@@ -107,7 +109,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         setAllDay(shift.allDay)
         setNote(shift.note ?? "")
       } else {
-        setUserId(employees[0]?.id || OPEN_SHIFT_VALUE)
+        setUserId(fixedUserId ?? employees[0]?.id ?? OPEN_SHIFT_VALUE)
         setFrequency("once")
         setDate(defaultDate ?? "")
         setSelectedDays([])
@@ -120,7 +122,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
       }
       setError("")
     }
-  }, [open, shift, defaultDate, defaultStartTime, defaultEndTime, employees])
+  }, [open, shift, defaultDate, defaultStartTime, defaultEndTime, employees, fixedUserId])
 
   function toggleDay(day: number) {
     setSelectedDays((prev) =>
@@ -167,7 +169,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
       return
     }
 
-    const resolvedUserId = userId === OPEN_SHIFT_VALUE ? null : userId
+    const resolvedUserId = fixedUserId ? fixedUserId : (userId === OPEN_SHIFT_VALUE ? null : userId)
 
     startTransition(async () => {
       try {
@@ -239,25 +241,27 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             </div>
           )}
 
-          {/* Employee */}
-          <div className="flex flex-col gap-1.5">
-            <Label>Zamestnanec</Label>
-            <Select value={userId} onValueChange={setUserId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Vyberte zamestnanca" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={OPEN_SHIFT_VALUE}>
-                  <span className="text-muted-foreground">Voľná zmena (bez zamestnanca)</span>
-                </SelectItem>
-                {employees.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name}
+          {/* Employee — skryté ak je zmena len pre prihláseného (kalendár) */}
+          {!fixedUserId && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Zamestnanec</Label>
+              <Select value={userId} onValueChange={setUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte zamestnanca" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={OPEN_SHIFT_VALUE}>
+                    <span className="text-muted-foreground">Voľná zmena (bez zamestnanca)</span>
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+                  {employees.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Date — once */}
           {frequency === "once" && (

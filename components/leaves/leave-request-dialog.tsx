@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -47,6 +49,7 @@ interface Props {
 }
 
 export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shiftId, shiftLabel, colleagues }: Props) {
+  const router = useRouter()
   const isEdit = !!leave
   const [type, setType] = useState<"vacation" | "sick" | "personal">("vacation")
   const [startDate, setStartDate] = useState("")
@@ -84,15 +87,20 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
       try {
         if (isEdit) {
           await updateLeave(leave.id, { type, startDate, endDate, note })
+          toast.success("Žiadosť bola upravená")
         } else {
           await requestLeave({ type, startDate, endDate, note })
           if (shiftId && replacementUserId) {
             await requestReplacement(shiftId, replacementUserId)
           }
+          toast.success("Žiadosť o voľno bola odoslaná")
         }
+        router.refresh()
         onOpenChange(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Nastala chyba")
+        const msg = err instanceof Error ? err.message : "Nastala chyba"
+        setError(msg)
+        toast.error(msg)
       }
     })
   }

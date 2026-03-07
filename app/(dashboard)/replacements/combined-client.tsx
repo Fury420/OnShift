@@ -3,10 +3,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Umbrella, ArrowLeftRight } from "lucide-react"
-import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
-import { EmployeeLeavesTable, type LeaveRow } from "@/components/leaves/employee-leaves-table"
-import { MyRequestsTable } from "@/components/shift-replacement/my-requests-table"
+import { Plus, ArrowLeftRight } from "lucide-react"
+import { RequestTabs } from "./request-tabs"
 import { IncomingRequestsTable } from "@/components/shift-replacement/incoming-requests-table"
 import { AdminReplacementsTable } from "@/components/shift-replacement/admin-replacements-table"
 import { NewReplacementDialog, type ShiftOption, type ColleagueOption } from "@/components/shift-replacement/new-replacement-dialog"
@@ -66,31 +64,22 @@ export function CombinedClient({
   myShifts,
   colleagues,
 }: Props) {
-  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
   const [replacementDialogOpen, setReplacementDialogOpen] = useState(false)
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
       <h1 className="text-2xl font-semibold">Žiadosti</h1>
 
-      {/* ── Voľno ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-2">
-            <Umbrella className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Voľno</CardTitle>
-          </div>
-          <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-            <Plus className="size-4" />
-            Nová žiadosť
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <EmployeeLeavesTable rows={leaves} />
-        </CardContent>
-      </Card>
+      <RequestTabs
+        leaves={leaves}
+        myRequests={myRequests}
+        monthLabel={monthLabel}
+        prevMonth={prevMonth}
+        nextMonth={nextMonth}
+        isCurrentMonth={isCurrentMonth}
+      />
 
-      {/* ── Zastup ────────────────────────────────────────── */}
+      {/* ── Zastup: prichádzajúce / admin ─────────────────── */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-2">
@@ -114,21 +103,9 @@ export function CombinedClient({
               <IncomingRequestsTable requests={incomingRequests} />
             </div>
           )}
-
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Moje žiadosti</p>
-            <MyRequestsTable
-              requests={myRequests}
-              monthLabel={monthLabel}
-              prevMonth={prevMonth}
-              nextMonth={nextMonth}
-              isCurrentMonth={isCurrentMonth}
-            />
-          </div>
         </CardContent>
       </Card>
 
-      <LeaveRequestDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} />
       <NewReplacementDialog
         open={replacementDialogOpen}
         onOpenChange={setReplacementDialogOpen}
