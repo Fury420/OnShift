@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum, date, time, uuid, boolean, decimal, unique, integer } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, pgEnum, date, time, uuid, boolean, decimal, unique, integer, index } from "drizzle-orm/pg-core"
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +11,12 @@ export const leaveStatusEnum = pgEnum("leave_status", ["pending", "approved", "r
 export const replacementStatusEnum = pgEnum("replacement_status", ["pending", "accepted", "rejected"])
 export const shiftRuleFrequencyEnum = pgEnum("shift_rule_frequency", ["once", "weekly", "monthly"])
 export const shiftExceptionActionEnum = pgEnum("shift_exception_action", ["skip", "modify"])
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "leave_requested", "leave_approved", "leave_rejected", "leave_cancelled",
+  "shift_assigned", "shift_modified", "open_shift_published", "drafts_published",
+  "attendance_edited",
+  "replacement_requested", "replacement_accepted", "replacement_rejected", "replacement_resolved",
+])
 
 // ─── Organizations ────────────────────────────────────────────────────────────
 
@@ -268,3 +274,26 @@ export const shiftExceptions = pgTable("shift_exceptions", {
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
 })
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: notificationTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    linkUrl: text("link_url"),
+    referenceId: text("reference_id"),
+    isRead: boolean("is_read").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("idx_notif_recipient_unread").on(t.recipientId, t.isRead, t.createdAt)],
+)

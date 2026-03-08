@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/session"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { createNotification, getAdminIds } from "@/lib/notifications"
 
 export async function requestLeave(data: {
   type: "vacation" | "sick" | "personal"
@@ -29,6 +30,17 @@ export async function requestLeave(data: {
     suggestedReplacementUserId: data.suggestedReplacementUserId || null,
   })
 
+  getAdminIds(orgId).then((adminIds) =>
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: adminIds,
+      type: "leave_requested",
+      title: `${session.user.name} požiadal/a o voľno (${data.startDate} – ${data.endDate})`,
+      linkUrl: "/admin/leaves",
+    }),
+  ).catch(console.error)
+
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
   revalidatePath("/replacements")
@@ -48,7 +60,20 @@ export async function cancelLeave(id: string) {
   if (leave.userId !== session.user.id) throw new Error("Nemáte oprávnenie.")
   if (leave.status !== "pending") throw new Error("Schválenú alebo zamietnutú žiadosť nie je možné zrušiť.")
 
+  const orgId = await getOrganizationId()
+
   await db.delete(leaves).where(and(eq(leaves.id, id), eq(leaves.userId, session.user.id)))
+
+  getAdminIds(orgId).then((adminIds) =>
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: adminIds,
+      type: "leave_cancelled",
+      title: `${session.user.name} zrušil/a žiadosť o voľno`,
+      linkUrl: "/admin/leaves",
+    }),
+  ).catch(console.error)
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
@@ -101,10 +126,28 @@ export async function adminUpdateLeaveStatus(id: string, status: "approved" | "r
   const session = await requireAdmin()
   const orgId = await getOrganizationId()
 
+  const [leave] = await db
+    .select({ userId: leaves.userId })
+    .from(leaves)
+    .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
+    .limit(1)
+
   await db
     .update(leaves)
     .set({ status, approvedBy: session.user.id, updatedAt: new Date() })
     .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
+
+  if (leave) {
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: [leave.userId],
+      type: status === "approved" ? "leave_approved" : "leave_rejected",
+      title: `Vaša žiadosť o voľno bola ${status === "approved" ? "schválená" : "zamietnutá"}`,
+      linkUrl: "/leaves",
+      referenceId: id,
+    }).catch(console.error)
+  }
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
@@ -121,7 +164,7 @@ export async function approveLeave(id: string, status: "approved" | "rejected") 
   const isAdmin = (session.user as { role?: string }).role === "admin"
 
   const [leave] = await db
-    .select({ id: leaves.id, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId })
+    .select({ id: leaves.id, userId: leaves.userId, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId })
     .from(leaves)
     .where(eq(leaves.id, id))
     .limit(1)
@@ -137,6 +180,16 @@ export async function approveLeave(id: string, status: "approved" | "rejected") 
     .update(leaves)
     .set({ status, approvedBy: currentUserId, updatedAt: new Date() })
     .where(eq(leaves.id, id))
+
+  createNotification({
+    organizationId: orgId,
+    actorId: currentUserId,
+    recipientIds: [leave.userId],
+    type: status === "approved" ? "leave_approved" : "leave_rejected",
+    title: `Vaša žiadosť o voľno bola ${status === "approved" ? "schválená" : "zamietnutá"}`,
+    linkUrl: "/leaves",
+    referenceId: id,
+  }).catch(console.error)
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")

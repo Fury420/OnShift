@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
 import { toDateStr, addDays } from "@/lib/week"
+import { createNotification, getOrgEmployeeIds } from "@/lib/notifications"
 
 function revalidateSchedule() {
   revalidatePath("/admin/schedule")
@@ -130,7 +131,7 @@ export async function updateShift(
   id: string,
   data: { userId: string | null; date: string; startTime: string; endTime: string; note?: string; maxClaims?: number },
 ) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const orgId = await getOrganizationId()
   if (data.userId) {
     await checkConflict(data.userId, data.date, data.startTime, data.endTime, id)
@@ -143,7 +144,7 @@ export async function updateShift(
 
   // Status: priradená zmena → vždy draft; voľná zmena → ponechať aktuálny status (draft zostane draft, open zostane open)
   const [current] = await db
-    .select({ status: shifts.status })
+    .select({ status: shifts.status, userId: shifts.userId })
     .from(shifts)
     .where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
     .limit(1)
@@ -162,6 +163,22 @@ export async function updateShift(
       updatedAt: new Date(),
     })
     .where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
+
+  // Notify affected employee(s)
+  const notifyIds: string[] = []
+  if (data.userId && data.userId !== current?.userId) notifyIds.push(data.userId)
+  if (current?.userId && current.userId !== data.userId) notifyIds.push(current.userId)
+  if (notifyIds.length > 0) {
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: notifyIds,
+      type: "shift_modified",
+      title: `Zmena na ${data.date} bola upravená`,
+      linkUrl: "/schedule",
+      referenceId: id,
+    }).catch(console.error)
+  }
 
   revalidateSchedule()
 }
@@ -252,13 +269,35 @@ export async function deleteShift(id: string) {
 // ─── Toggle shift status (draft ↔ published) ────────────────────────────────
 
 export async function toggleShiftStatus(id: string, current: "draft" | "open" | "published") {
-  await requireAdmin()
+  const session = await requireAdmin()
   const orgId = await getOrganizationId()
+
+  const newStatus = current === "draft" ? "published" : "draft"
+
+  // Get shift's assigned user before toggling
+  const [shift] = await db
+    .select({ userId: shifts.userId, date: shifts.date })
+    .from(shifts)
+    .where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
+    .limit(1)
 
   await db
     .update(shifts)
-    .set({ status: current === "draft" ? "published" : "draft", updatedAt: new Date() })
+    .set({ status: newStatus, updatedAt: new Date() })
     .where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
+
+  // Notify when publishing (draft → published)
+  if (newStatus === "published" && shift?.userId) {
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: [shift.userId],
+      type: "shift_assigned",
+      title: `Bola vám priradená zmena na ${shift.date}`,
+      linkUrl: "/schedule",
+      referenceId: id,
+    }).catch(console.error)
+  }
 
   revalidateSchedule()
 }
@@ -267,9 +306,18 @@ export async function toggleShiftStatus(id: string, current: "draft" | "open" | 
 // Priradené zmeny → published, voľné zmeny → open (viditeľné pre zamestnancov)
 
 export async function publishDraftShifts(ids: string[]) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const orgId = await getOrganizationId()
   if (ids.length === 0) return
+
+  // Query affected shifts before publishing
+  const affectedShifts = await db
+    .select({ userId: shifts.userId })
+    .from(shifts)
+    .where(and(inArray(shifts.id, ids), eq(shifts.organizationId, orgId)))
+
+  const assignedUserIds = [...new Set(affectedShifts.filter((s) => s.userId).map((s) => s.userId!))]
+  const hasOpenShifts = affectedShifts.some((s) => !s.userId)
 
   const base = and(inArray(shifts.id, ids), eq(shifts.organizationId, orgId))
   await db
@@ -280,6 +328,32 @@ export async function publishDraftShifts(ids: string[]) {
     .update(shifts)
     .set({ status: "open", updatedAt: new Date() })
     .where(and(base, isNull(shifts.userId)))
+
+  // Notify assigned employees
+  if (assignedUserIds.length > 0) {
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: assignedUserIds,
+      type: "drafts_published",
+      title: "Boli publikované nové zmeny v rozvrhu",
+      linkUrl: "/schedule",
+    }).catch(console.error)
+  }
+
+  // Notify all employees about open shifts
+  if (hasOpenShifts) {
+    getOrgEmployeeIds(orgId).then((employeeIds) =>
+      createNotification({
+        organizationId: orgId,
+        actorId: session.user.id,
+        recipientIds: employeeIds,
+        type: "open_shift_published",
+        title: "K dispozícii sú nové voľné zmeny",
+        linkUrl: "/schedule",
+      }),
+    ).catch(console.error)
+  }
 
   revalidateSchedule()
 }

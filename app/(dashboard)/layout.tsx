@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { UserMenu } from "@/components/user-menu"
+import { NotificationBell } from "@/components/notification-bell"
 import { ImpersonationBanner } from "@/components/impersonation-banner"
 import { getSession } from "@/lib/session"
 import { db } from "@/db"
@@ -68,7 +69,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <ImpersonationBanner orgName={impersonatedOrg.name} />
           <header className="flex h-12 items-center border-b px-4 gap-2">
             <SidebarTrigger className="md:hidden" />
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationBell />
               <UserMenu user={user} />
             </div>
           </header>
@@ -121,7 +123,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <SidebarInset className="rounded-xl overflow-hidden shadow-sm dark:bg-card">
         <header className="flex h-12 items-center border-b px-4 gap-2">
           <SidebarTrigger className="md:hidden" />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <NotificationBell />
             <UserMenu user={user} />
           </div>
         </header>
