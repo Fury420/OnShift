@@ -90,6 +90,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   const [leavesInRange, setLeavesInRange] = useState<{ startDate: string; endDate: string; type: string }[]>([])
 
   const isOpenShift = fixedUserId ? false : userId === OPEN_SHIFT_VALUE
+  const hasLeaveConflict = !isOpenShift && leavesInRange.length > 0
 
   const periodFrom = frequency === "once" ? date : validFrom
   const periodTo = frequency === "once" ? date : validUntil
@@ -172,6 +173,10 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
+    if (hasLeaveConflict) {
+      setError("Tento zamestnanec v daných termínoch nie je dostupný. Zmenu nie je možné vytvoriť.")
+      return
+    }
 
     const resolvedUserId = fixedUserId ? fixedUserId : (userId === OPEN_SHIFT_VALUE ? null : userId)
 
@@ -274,6 +279,11 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
                   </div>
                 )}
               </div>
+              {hasLeaveConflict && (
+                <p className="text-sm text-destructive font-medium">
+                  Tento zamestnanec v daných termínoch nie je dostupný. Zmenu nie je možné vytvoriť.
+                </p>
+              )}
             </div>
           )}
 
@@ -378,7 +388,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Zrušiť
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || hasLeaveConflict}>
               {isPending ? "Ukladám…" : isEdit ? "Uložiť" : "Vytvoriť"}
             </Button>
           </DialogFooter>

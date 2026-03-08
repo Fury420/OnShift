@@ -82,9 +82,9 @@ interface AdminMonthCalendarProps {
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
 const LEAVE_LABELS: Record<string, string> = { vacation: "Dovolenka", sick: "PN", personal: "Osobné voľno" }
 
-/** Jednotný vzhľad voľna – zelená / smaragd, aby sa nepletla so zmenami */
+/** Jednotný vzhľad voľna – nedostupná červená/ružová (iná ako farby zamestnancov) */
 const LEAVE_STYLES = {
-  approved: "bg-emerald-50 dark:bg-emerald-950/50 border border-dashed border-emerald-500/70 text-emerald-800 dark:text-emerald-200",
+  approved: "bg-rose-50 dark:bg-rose-950/50 border border-dashed border-rose-400/70 text-rose-800 dark:text-rose-200",
   pending: "bg-amber-50 dark:bg-amber-950/40 border border-dashed border-amber-500/60 text-amber-800 dark:text-amber-200",
 } as const
 const HOUR_HEIGHT = 56
@@ -517,7 +517,7 @@ export function AdminMonthCalendar({
                           l.status === "approved" ? LEAVE_STYLES.approved : LEAVE_STYLES.pending,
                         )}
                       >
-                        <Palmtree className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <Palmtree className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
                         <div className="min-w-0">
                           <div className="text-sm font-semibold truncate">{l.userName}</div>
                           <div className="text-xs opacity-90">
@@ -719,7 +719,7 @@ export function AdminMonthCalendar({
                       l.status === "approved" ? LEAVE_STYLES.approved : LEAVE_STYLES.pending,
                     )}
                   >
-                    <Palmtree className="size-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <Palmtree className="size-2.5 shrink-0 text-rose-600 dark:text-rose-400" />
                     <span className="truncate font-medium">{l.userName}</span>
                     <span className="text-[9px] opacity-80 truncate">{LEAVE_LABELS[l.type] ?? l.type}</span>
                     {l.status === "pending" && <span className="text-[9px] opacity-60">(čaká)</span>}
@@ -895,7 +895,7 @@ export function AdminMonthCalendar({
                                 l.status === "approved" ? LEAVE_STYLES.approved : LEAVE_STYLES.pending,
                               )}
                             >
-                              <Palmtree className="size-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                              <Palmtree className="size-2.5 shrink-0 text-rose-600 dark:text-rose-400" />
                               <span className="truncate font-medium">{l.userName}</span>
                               {l.status === "pending" && <span className="text-[9px] opacity-60">(čaká)</span>}
                             </div>

@@ -100,7 +100,7 @@ export function NotificationBell() {
           <span className="sr-only">Oznámenia</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-80 max-h-[85vh] flex-col p-0">
+      <PopoverContent align="end" className="flex h-[420px] w-80 flex-col overflow-hidden p-0">
         <div className="flex shrink-0 items-center justify-between px-4 py-3">
           <h4 className="text-sm font-semibold">Oznámenia</h4>
           {unreadCount > 0 && (
@@ -111,7 +111,7 @@ export function NotificationBell() {
           )}
         </div>
         <Separator className="shrink-0" />
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {loading && items.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Načítavam...</div>
           ) : items.length === 0 ? (
