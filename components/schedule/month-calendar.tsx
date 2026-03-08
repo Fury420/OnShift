@@ -3,14 +3,13 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Clock, Plus, Check } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
 import type { ColleagueOption } from "@/components/shift-replacement/request-dialog"
-import { claimShift, claimRuleShift } from "@/app/actions/schedule"
+import { claimShift, unclaimShift } from "@/app/actions/schedule"
 import { toast } from "sonner"
-import { RequestShiftDialog } from "./request-shift-dialog"
 import { ShiftDialog } from "./shift-dialog"
 
 export interface CalendarShift {
@@ -37,20 +36,12 @@ export interface OpenShift {
   iMayClaim: boolean
 }
 
-export interface RequestedShift {
-  id: string
-  startTime: string
-  endTime: string
-  note: string | null
-}
-
 export interface CalendarDay {
   date: string
   isCurrentMonth: boolean
   isToday: boolean
   shifts: CalendarShift[]
   openShifts: OpenShift[]
-  requestedShifts: RequestedShift[]
 }
 
 export interface BusinessHoursEntry {
@@ -68,7 +59,6 @@ interface MonthCalendarProps {
   allEmployees: ColleagueOption[]
   businessHours?: Map<string, BusinessHoursEntry>
   currentUserId?: string
-  /** Ak true (admin), zobrazí tlačidlo „Nová zmena“ a ShiftDialog namiesto len žiadosti o zmenu */
   canCreateShifts?: boolean
 }
 
@@ -128,9 +118,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     return idx >= 0 ? idx : weeks.findIndex((w) => w.some((d) => d.isCurrentMonth)) ?? 0
   })
   const [leaveCtx, setLeaveCtx] = useState<LeaveContext | null>(null)
-  const [requestDate, setRequestDate] = useState<string | null>(null)
-  const [requestStartTime, setRequestStartTime] = useState<string | undefined>()
-  const [requestEndTime, setRequestEndTime] = useState<string | undefined>()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createDate, setCreateDate] = useState<string | undefined>()
   const [createStartTime, setCreateStartTime] = useState<string | undefined>()
@@ -185,7 +172,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         setTimeout(() => {
           if (prev.bottomMinutes - prev.topMinutes >= 15) {
             if (canCreateShifts) openCreateDialog(drag.date, st, et)
-            else openRequestDialog(drag.date, st, et)
           }
         }, 0)
         return null
@@ -201,11 +187,9 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   }, [getMinutesFromY, canCreateShifts])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
-  const weekStart = currentWeek[0]
-  const weekEnd = currentWeek[6]
   const weekLabel = (() => {
-    const s = new Date(weekStart.date + "T12:00:00")
-    const e = new Date(weekEnd.date + "T12:00:00")
+    const s = new Date(currentWeek[0].date + "T12:00:00")
+    const e = new Date(currentWeek[6].date + "T12:00:00")
     const fmt = (d: Date) => {
       const day = d.getDate()
       const mon = d.toLocaleDateString("en-US", { month: "short" })
@@ -213,12 +197,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     }
     return `${fmt(s)} – ${fmt(e)}`
   })()
-
-  function openRequestDialog(date?: string, startTime?: string, endTime?: string) {
-    setRequestDate(date ?? "")
-    setRequestStartTime(startTime)
-    setRequestEndTime(endTime)
-  }
 
   function openCreateDialog(date?: string, startTime?: string, endTime?: string) {
     setCreateDate(date)
@@ -235,20 +213,24 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     router.refresh()
   }
 
-  function handleClaim(os: { id: string; startTime: string; endTime: string; maxClaims?: number }) {
+  function handleClaim(shiftId: string) {
     startTransition(async () => {
       try {
-        if (os.id.startsWith("rule:")) {
-          const parts = os.id.split(":")
-          const ruleId = parts[1]
-          const date = parts.slice(2).join(":")
-          await claimRuleShift(ruleId, date, os.startTime, os.endTime, os.maxClaims)
-        } else {
-          await claimShift(os.id)
-        }
+        await claimShift(shiftId)
         toast.success("Zmena bola priradená")
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Chyba pri prihlasovaní")
+      }
+    })
+  }
+
+  function handleUnclaim(shiftId: string) {
+    startTransition(async () => {
+      try {
+        await unclaimShift(shiftId)
+        toast.success("Prihlásenie zrušené")
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Chyba pri odhlasovaní")
       }
     })
   }
@@ -275,11 +257,8 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   function goToToday() {
     const today = new Date().toISOString().slice(0, 10)
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
-    if (idx >= 0) {
-      setWeekIdx(idx)
-    } else {
-      router.push("/schedule")
-    }
+    if (idx >= 0) setWeekIdx(idx)
+    else router.push("/schedule")
   }
 
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -320,7 +299,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
           </div>
           <Button
             size="sm"
-            onClick={(e) => { e.stopPropagation(); handleClaim(nextOpenShift) }}
+            onClick={(e) => { e.stopPropagation(); handleClaim(nextOpenShift.id) }}
             disabled={isPending}
           >
             Prihlásiť sa
@@ -330,7 +309,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2">
-          {view === "month" ? (
+        {view === "month" ? (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" asChild>
               <Link href={`/schedule?month=${prevMonth}`}><ChevronLeft className="size-4" /></Link>
@@ -360,20 +339,8 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
             </Button>
           )}
           <div className="flex rounded-md border p-0.5 gap-0.5">
-            <Button
-              variant={view === "week" ? "secondary" : "ghost"}
-              size="sm" className="h-7 px-3 text-xs"
-              onClick={() => setView("week")}
-            >
-              Týždeň
-            </Button>
-            <Button
-              variant={view === "month" ? "secondary" : "ghost"}
-              size="sm" className="h-7 px-3 text-xs"
-              onClick={() => setView("month")}
-            >
-              Mesiac
-            </Button>
+            <Button variant={view === "week" ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setView("week")}>Týždeň</Button>
+            <Button variant={view === "month" ? "secondary" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setView("month")}>Mesiac</Button>
           </div>
         </div>
       </div>
@@ -391,7 +358,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                 className={cn(
                   "rounded-xl border p-3 flex flex-col gap-2",
                   day.isToday && "border-primary/40 bg-primary/5",
-                  !day.isToday && day.shifts.length === 0 && day.openShifts.length === 0 && day.requestedShifts.length === 0 && "opacity-50",
+                  !day.isToday && day.shifts.length === 0 && day.openShifts.length === 0 && "opacity-50",
                 )}
               >
                 <div className="flex items-center justify-between">
@@ -401,17 +368,17 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     </div>
                     <span className={cn("text-sm font-medium capitalize", !day.isCurrentMonth && "text-muted-foreground")}>{dayLabel}</span>
                   </div>
-                  {!isPast && day.isCurrentMonth && (
+                  {!isPast && day.isCurrentMonth && canCreateShifts && (
                     <button
-                      onClick={() => (canCreateShifts ? openCreateDialog(day.date) : openRequestDialog(day.date))}
+                      onClick={() => openCreateDialog(day.date)}
                       className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
-                      title={canCreateShifts ? "Nová zmena" : "Požiadať o zmenu"}
+                      title="Nová zmena"
                     >
                       <Plus className="size-4" />
                     </button>
                   )}
                 </div>
-                {day.shifts.length === 0 && day.openShifts.filter((os) => os.acceptedCount < os.maxClaims).length === 0 && day.requestedShifts.length === 0 ? (
+                {day.shifts.length === 0 && day.openShifts.length === 0 ? (
                   <p className="text-xs text-muted-foreground pl-10">Žiadne zmeny</p>
                 ) : (
                   <div className="flex flex-col gap-1.5 pl-10">
@@ -426,28 +393,29 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         </div>
                       )
                     })}
-                    {day.requestedShifts.map((rs) => (
-                      <div key={rs.id} className="rounded-lg border border-dashed border-amber-400/60 px-3 py-2 bg-amber-50/50 dark:bg-amber-950/20">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-amber-700 dark:text-amber-400">Moja požiadavka</span>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="size-3" /> Čaká</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">{rs.startTime}–{rs.endTime}</div>
-                      </div>
-                    ))}
-                    {day.openShifts.filter((os) => os.acceptedCount < os.maxClaims).map((os) => {
+                    {day.openShifts.map((os) => {
                       const canClaim = os.iMayClaim && !isPast
+                      const isClaimed = !!os.myClaimId
                       return (
                         <div key={os.id}
-                          className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1 bg-muted/10", canClaim && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
-                          onClick={canClaim ? () => handleClaim(os) : undefined}>
+                          className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1 bg-muted/10",
+                            canClaim && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
+                          onClick={canClaim ? () => handleClaim(os.id) : undefined}>
                           <div className="flex items-center justify-between">
                             <div className="text-sm font-medium text-muted-foreground">
                               Voľná zmena
                               {os.maxClaims > 1 && <span className="ml-1 text-xs opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </div>
                             {canClaim && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
-                            {os.myClaimId && <span className="text-xs text-muted-foreground flex items-center gap-1"><Check className="size-3" /> Prihlásený</span>}
+                            {isClaimed && (
+                              <button
+                                className="text-xs text-muted-foreground flex items-center gap-1 hover:text-destructive transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleUnclaim(os.id) }}
+                                disabled={isPending}
+                              >
+                                <Check className="size-3" /> Odhlásiť sa
+                              </button>
+                            )}
                           </div>
                           <div className="text-xs text-muted-foreground">{os.startTime}–{os.endTime}</div>
                           {os.claimedByUsers.length > 0 && (
@@ -499,18 +467,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         </div>
                       )
                     })}
-                    {day.requestedShifts.map((rs) => (
-                      <div key={rs.id} className="rounded border border-dashed border-amber-400/60 px-1.5 py-0.5 text-xs leading-tight bg-amber-50/50 dark:bg-amber-950/20">
-                        <div className="truncate text-amber-700 dark:text-amber-400 font-medium">Požiadavka</div>
-                        <div className="opacity-70 text-amber-600">{rs.startTime}–{rs.endTime}</div>
-                      </div>
-                    ))}
-                    {day.openShifts.filter((os) => os.acceptedCount < os.maxClaims).map((os) => {
+                    {day.openShifts.map((os) => {
                       const canClaimGrid = os.iMayClaim && !isPast
                       return (
                         <div key={os.id}
                           className={cn("rounded border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-xs leading-tight bg-background", canClaimGrid && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
-                          onClick={canClaimGrid ? () => handleClaim(os) : undefined}>
+                          onClick={canClaimGrid ? () => handleClaim(os.id) : undefined}>
                           <div className="flex items-center justify-between gap-0.5">
                             <span className="truncate text-muted-foreground font-medium">
                               Voľná
@@ -524,30 +486,26 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     })}
                   </>
                 )
-                const canRequest = !isPast && day.isCurrentMonth
                 return (
                   <div key={day.date} className={cn("min-h-20 p-1 border-r last:border-r-0", !day.isCurrentMonth && "bg-muted/20", day.isToday && "bg-primary/5")}>
                     <div className="flex items-center justify-between mb-1 group/day">
                       <div className={cn("text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full", day.isToday ? "bg-primary text-primary-foreground" : day.isCurrentMonth ? "text-foreground" : "text-muted-foreground")}>
                         {dayNum}
                       </div>
-                      {!isPast && day.isCurrentMonth && (
+                      {!isPast && day.isCurrentMonth && canCreateShifts && (
                         <button
-                          onClick={() => (canCreateShifts ? openCreateDialog(day.date) : openRequestDialog(day.date))}
+                          onClick={() => openCreateDialog(day.date)}
                           className="opacity-0 group-hover/day:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
-                          title={canCreateShifts ? "Nová zmena" : "Požiadať o zmenu"}
+                          title="Nová zmena"
                         >
                           <Plus className="size-3 text-muted-foreground" />
                         </button>
                       )}
                     </div>
                     {hasOpenHours ? (
-                      <div
-                        className={cn("rounded-md border border-dashed border-muted-foreground/25 bg-muted/10 px-1 pt-0.5 pb-1 flex flex-col gap-0.5 min-h-10", canRequest && "cursor-pointer")}
-                        onClick={canRequest ? () => (canCreateShifts ? openCreateDialog(day.date) : openRequestDialog(day.date)) : undefined}
-                      >
+                      <div className="rounded-md border border-dashed border-muted-foreground/25 bg-muted/10 px-1 pt-0.5 pb-1 flex flex-col gap-0.5 min-h-10">
                         <div className="text-[9px] text-muted-foreground/50 leading-none mb-0.5 select-none">{bh.openTime!.slice(0, 5)}–{bh.closeTime!.slice(0, 5)}</div>
-                        <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>{shiftBlocks}</div>
+                        <div className="flex flex-col gap-0.5">{shiftBlocks}</div>
                       </div>
                     ) : (
                       <div className="flex flex-col gap-0.5">{shiftBlocks}</div>
@@ -564,8 +522,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
       {view === "week" && (() => {
         const allEntries = currentWeek.flatMap(d => [
           ...d.shifts.map(s => ({ start: s.startTime, end: s.endTime })),
-          ...d.openShifts.filter(os => os.acceptedCount < os.maxClaims).map(s => ({ start: s.startTime, end: s.endTime })),
-          ...d.requestedShifts.map(s => ({ start: s.startTime, end: s.endTime })),
+          ...d.openShifts.map(s => ({ start: s.startTime, end: s.endTime })),
         ])
         currentWeek.forEach(day => {
           const dow = String(new Date(day.date + "T12:00:00").getDay())
@@ -619,17 +576,14 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
               {/* Day columns */}
               {currentWeek.map((day) => {
                 const isPast = day.date < todayStr
-                const canRequest = !isPast && day.isCurrentMonth
 
                 type TaggedShift = CalendarShift & { _type: "shift" }
                 type TaggedOpen = OpenShift & { _type: "open" }
-                type TaggedReq = RequestedShift & { _type: "requested" }
-                type TaggedItem = TaggedShift | TaggedOpen | TaggedReq
+                type TaggedItem = TaggedShift | TaggedOpen
 
                 const allItems: TaggedItem[] = [
                   ...day.shifts.map(s => ({ ...s, _type: "shift" as const })),
-                  ...day.openShifts.filter(os => os.acceptedCount < os.maxClaims).map(s => ({ ...s, _type: "open" as const })),
-                  ...day.requestedShifts.map(s => ({ ...s, _type: "requested" as const })),
+                  ...day.openShifts.map(s => ({ ...s, _type: "open" as const })),
                 ]
                 const lanes = assignLanes(allItems)
 
@@ -637,9 +591,9 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                   <div
                     key={day.date}
                     data-day-col={day.date}
-                    className={cn("relative border-l select-none", day.isToday && "bg-primary/5", !day.isCurrentMonth && "bg-muted/20", canRequest && "cursor-crosshair")}
+                    className={cn("relative border-l select-none", day.isToday && "bg-primary/5", !day.isCurrentMonth && "bg-muted/20", canCreateShifts && "cursor-crosshair")}
                     style={{ height: totalHeight }}
-                    onMouseDown={canRequest ? (e) => {
+                    onMouseDown={canCreateShifts ? (e) => {
                       if (e.target === e.currentTarget || (e.target as HTMLElement).hasAttribute("data-grid-line"))
                         handleTimelineMouseDown(e, day.date)
                     } : undefined}
@@ -685,6 +639,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         if (item._type === "open") {
                           const os = item
                           const canClaimTl = os.iMayClaim && !isPast
+                          const isClaimed = !!os.myClaimId
                           return (
                             <div
                               key={os.id}
@@ -693,7 +648,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                 canClaimTl && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors",
                               )}
                               style={posStyle}
-                              onClick={canClaimTl ? () => handleClaim(os) : undefined}
+                              onClick={canClaimTl ? () => handleClaim(os.id) : undefined}
                             >
                               <div className="font-medium text-muted-foreground leading-tight">
                                 Voľná
@@ -701,7 +656,15 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               </div>
                               <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
                               {canClaimTl && <div className="text-primary font-medium text-xs mt-0.5">Prihlásiť sa</div>}
-                              {os.myClaimId && <div className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
+                              {isClaimed && (
+                                <button
+                                  className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5 hover:text-destructive transition-colors pointer-events-auto"
+                                  onClick={(e) => { e.stopPropagation(); handleUnclaim(os.id) }}
+                                  disabled={isPending}
+                                >
+                                  <Check className="size-2.5" /> Odhlásiť sa
+                                </button>
+                              )}
                               {os.claimedByUsers.length > 0 && (
                                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                                   {os.claimedByUsers.map((u) => (
@@ -709,20 +672,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                   ))}
                                 </div>
                               )}
-                            </div>
-                          )
-                        }
-
-                        if (item._type === "requested") {
-                          const rs = item
-                          return (
-                            <div
-                              key={rs.id}
-                              className="absolute flex flex-col justify-start rounded-md border border-dashed border-amber-400/60 px-1.5 py-1 text-sm bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden pointer-events-auto"
-                              style={posStyle}
-                            >
-                              <div className="font-medium text-amber-700 dark:text-amber-400 leading-tight">Požiadavka</div>
-                              <div className="text-muted-foreground text-xs leading-tight">{rs.startTime}–{rs.endTime}</div>
                             </div>
                           )
                         }
@@ -760,13 +709,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         shiftId={leaveCtx?.shiftId}
         shiftLabel={leaveCtx?.shiftLabel}
         colleagues={leaveCtx?.colleagues}
-      />
-      <RequestShiftDialog
-        open={requestDate !== null}
-        onOpenChange={(open) => { if (!open) setRequestDate(null) }}
-        date={requestDate || undefined}
-        defaultStartTime={requestStartTime}
-        defaultEndTime={requestEndTime}
       />
       {canCreateShifts && (
         <ShiftDialog

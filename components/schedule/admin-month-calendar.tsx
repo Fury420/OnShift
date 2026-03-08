@@ -13,27 +13,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift-dialog"
-import { OfferShiftDialog } from "./offer-shift-dialog"
-import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftRequest, rejectShiftRequest, approveShiftClaim, rejectShiftClaim, updateShift } from "@/app/actions/schedule"
-import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
-import { Check, X, Pencil, Trash2, CalendarX, CalendarPlus } from "lucide-react"
+import { ShiftDialog, type ShiftForEdit, type EmployeeOption } from "./shift-dialog"
+import { deleteShift, toggleShiftStatus, publishDraftShifts, updateShift, adminRemoveClaim } from "@/app/actions/schedule"
+import { Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 export interface AdminCalendarShift {
   id: string
-  ruleId: string | null
   userId: string
   userName: string
   date: string
   startTime: string
   endTime: string
   note: string | null
-  status: "requested" | "draft" | "open" | "published"
+  status: "draft" | "open" | "published"
   color: string
-  isRule: boolean
-  isRecurring?: boolean
-  exceptionId?: string
 }
 
 export interface AdminOpenShift {
@@ -44,19 +38,6 @@ export interface AdminOpenShift {
   note: string | null
   claims: { claimId: string; userId: string; userName: string; color: string }[]
   maxClaims: number
-  isRule?: boolean
-  ruleId?: string | null
-}
-
-export interface AdminRequestedShift {
-  id: string
-  userId: string
-  userName: string
-  color: string
-  date: string
-  startTime: string
-  endTime: string
-  note: string | null
 }
 
 export interface AdminCalendarDay {
@@ -65,7 +46,6 @@ export interface AdminCalendarDay {
   isToday: boolean
   shifts: AdminCalendarShift[]
   openShifts: AdminOpenShift[]
-  requestedShifts: AdminRequestedShift[]
 }
 
 export interface BusinessHoursEntry {
@@ -85,7 +65,7 @@ interface AdminMonthCalendarProps {
 }
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
-const HOUR_HEIGHT = 56 // px per hour in timeline view
+const HOUR_HEIGHT = 56
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number)
@@ -125,11 +105,8 @@ interface DragState {
   date: string
   startMinutes: number
   currentMinutes: number
-  anchorMinutes: number // for create: the initial click point; for move: offset from block top
-  // for resize/move of existing shifts:
+  anchorMinutes: number
   shiftId?: string
-  isRule?: boolean
-  ruleId?: string | null
   originalStart?: number
   originalEnd?: number
 }
@@ -156,27 +133,20 @@ export function AdminMonthCalendar({
     return idx >= 0 ? idx : 0
   })
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<ShiftRuleForEdit | undefined>()
+  const [editing, setEditing] = useState<ShiftForEdit | undefined>()
   const [defaultDate, setDefaultDate] = useState<string | undefined>()
   const [defaultStartTime, setDefaultStartTime] = useState<string | undefined>()
   const [defaultEndTime, setDefaultEndTime] = useState<string | undefined>()
-  const [offerDialogOpen, setOfferDialogOpen] = useState(false)
-  const [offerDate, setOfferDate] = useState<string | undefined>()
-  const [offerStartTime, setOfferStartTime] = useState<string | undefined>()
-  const [offerEndTime, setOfferEndTime] = useState<string | undefined>()
   const [isPending, startTransition] = useTransition()
 
-  // Controlled dropdown — only one can be open at a time
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   // Drag state
   const dragRef = useRef<DragState | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
-  const dragMovedRef = useRef(false) // true ak prebehol skutočný drag (nie len klik)
+  const dragMovedRef = useRef(false)
 
-  // Drag handlers — these need access to startHour/PAD which are computed in render,
-  // so we store them in a ref that's updated each render.
   const layoutRef = useRef({ startHour: 8, PAD: 20 })
 
   const getMinutesFromY = useCallback((y: number, containerRect: DOMRect) => {
@@ -189,8 +159,8 @@ export function AdminMonthCalendar({
   const pendingDragRef = useRef<{ startX: number; startY: number; args: [string, DragMode, AdminCalendarShift?] } | null>(null)
 
   const startDrag = useCallback((date: string, mode: DragMode, clientY: number, shift?: AdminCalendarShift) => {
-    setOpenMenuId(null) // close any open dropdown
-    dragMovedRef.current = true // skutočný drag začal
+    setOpenMenuId(null)
+    dragMovedRef.current = true
     const col = timelineRef.current?.querySelector(`[data-day-col="${date}"]`) as HTMLElement | null
     if (!col) return
     const rect = col.getBoundingClientRect()
@@ -204,9 +174,9 @@ export function AdminMonthCalendar({
       const origEnd = timeToMinutes(shift.endTime)
       if (mode === "move") {
         const anchorOffset = minutes - origStart
-        dragRef.current = { mode, date, startMinutes: origStart, currentMinutes: minutes, anchorMinutes: anchorOffset, shiftId: shift.id, isRule: shift.isRule, ruleId: shift.ruleId, originalStart: origStart, originalEnd: origEnd }
+        dragRef.current = { mode, date, startMinutes: origStart, currentMinutes: minutes, anchorMinutes: anchorOffset, shiftId: shift.id, originalStart: origStart, originalEnd: origEnd }
       } else {
-        dragRef.current = { mode, date, startMinutes: mode === "resize-top" ? origStart : origEnd, currentMinutes: minutes, anchorMinutes: minutes, shiftId: shift.id, isRule: shift.isRule, ruleId: shift.ruleId, originalStart: origStart, originalEnd: origEnd }
+        dragRef.current = { mode, date, startMinutes: mode === "resize-top" ? origStart : origEnd, currentMinutes: minutes, anchorMinutes: minutes, shiftId: shift.id, originalStart: origStart, originalEnd: origEnd }
       }
       setDragPreview({ date, topMinutes: origStart, bottomMinutes: origEnd })
     }
@@ -221,19 +191,16 @@ export function AdminMonthCalendar({
     if (e.button !== 0) return
 
     if (mode === "create" || mode === "resize-top" || mode === "resize-bottom") {
-      // Start drag immediately for create and resize
       e.preventDefault()
       e.stopPropagation()
       startDrag(date, mode, e.clientY, shift)
     } else {
-      // For move: defer until mouse moves 4px (so clicks still open dropdown)
       pendingDragRef.current = { startX: e.clientX, startY: e.clientY, args: [date, mode, shift] }
     }
   }, [startDrag])
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
-      // Check pending move drag threshold
       const pending = pendingDragRef.current
       if (pending) {
         const dx = e.clientX - pending.startX
@@ -278,8 +245,6 @@ export function AdminMonthCalendar({
       if (!drag) return
       dragRef.current = null
 
-      // Ak prebehol skutočný drag, pohltíme nasledujúci click event
-      // aby sa dropdown neotvoril po pustení bloku
       if (dragMovedRef.current) {
         dragMovedRef.current = false
         window.addEventListener("click", (e) => {
@@ -291,7 +256,6 @@ export function AdminMonthCalendar({
       setDragPreview(prev => {
         if (!prev) return null
 
-        // Use setTimeout to schedule state updates outside the setState callback
         const startTime = minutesToTime(prev.topMinutes)
         const endTime = minutesToTime(prev.bottomMinutes)
 
@@ -304,23 +268,19 @@ export function AdminMonthCalendar({
               setDefaultEndTime(endTime)
               setDialogOpen(true)
             }
-          } else if (drag.mode === "resize-top" || drag.mode === "resize-bottom" || drag.mode === "move") {
+          } else if (drag.shiftId) {
             if (startTime !== minutesToTime(drag.originalStart!) || endTime !== minutesToTime(drag.originalEnd!)) {
-              if (drag.isRule && drag.ruleId) {
-                startTransition(() => modifyRuleInstance(drag.ruleId!, drag.date, { startTime, endTime }))
-              } else if (drag.shiftId) {
-                startTransition(async () => {
-                  try {
-                    const day = weeks.flat().find(d => d.date === drag.date)
-                    const shift = day?.shifts.find(s => s.id === drag.shiftId)
-                    if (shift) {
-                      await updateShift(drag.shiftId!, { userId: shift.userId || null, date: drag.date, startTime, endTime, note: shift.note || undefined })
-                    }
-                  } catch (err) {
-                    toast.error(err instanceof Error ? err.message : "Chyba pri presune")
+              startTransition(async () => {
+                try {
+                  const day = weeks.flat().find(d => d.date === drag.date)
+                  const shift = day?.shifts.find(s => s.id === drag.shiftId)
+                  if (shift) {
+                    await updateShift(drag.shiftId!, { userId: shift.userId || null, date: drag.date, startTime, endTime, note: shift.note || undefined })
                   }
-                })
-              }
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Chyba pri presune")
+                }
+              })
             }
           }
         }, 0)
@@ -360,22 +320,13 @@ export function AdminMonthCalendar({
   function goToToday() {
     const today = new Date().toISOString().slice(0, 10)
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
-    if (idx >= 0) {
-      setWeekIdx(idx)
-    } else {
-      router.push("/admin/schedule")
-    }
+    if (idx >= 0) setWeekIdx(idx)
+    else router.push("/admin/schedule")
   }
 
   const allDraftIds = weeks.flatMap((week) =>
-    week.flatMap((day) => day.shifts.filter((s) => s.status === "draft" && !s.isRule).map((s) => s.id)),
+    week.flatMap((day) => day.shifts.filter((s) => s.status === "draft").map((s) => s.id)),
   )
-
-  const allDraftRuleIds = [...new Set(
-    weeks.flatMap((week) =>
-      week.flatMap((day) => day.shifts.filter((s) => s.status === "draft" && s.isRule && s.ruleId).map((s) => s.ruleId!)),
-    ),
-  )]
 
   function openCreate(date?: string, startTime?: string, endTime?: string) {
     setEditing(undefined)
@@ -385,101 +336,38 @@ export function AdminMonthCalendar({
     setDialogOpen(true)
   }
 
-  function openEditRule(s: AdminCalendarShift) {
-    if (s.isRule && s.ruleId) {
-      // For rule-based shifts, we'd need to fetch the full rule data
-      // For now, construct what we can from the instance
-      setEditing({
-        id: s.ruleId,
-        userId: s.userId,
-        frequency: "once", // Will be overridden by the dialog's fetch
-        date: s.date,
-        days: null,
-        dayOfMonth: null,
-        validFrom: null,
-        validUntil: null,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        allDay: false,
-        note: s.note,
-      })
-    } else {
-      // Legacy shift — open as "once" rule edit
-      setEditing({
-        id: s.id,
-        userId: s.userId,
-        frequency: "once",
-        date: s.date,
-        days: null,
-        dayOfMonth: null,
-        validFrom: null,
-        validUntil: null,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        allDay: false,
-        note: s.note,
-      })
-    }
+  function openEdit(s: AdminCalendarShift) {
+    setEditing({
+      id: s.id,
+      userId: s.userId,
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      note: s.note,
+      maxClaims: 1,
+    })
     setDefaultDate(undefined)
     setDialogOpen(true)
   }
 
-  function openOffer(date?: string, startTime?: string, endTime?: string) {
-    setOfferDate(date)
-    setOfferStartTime(startTime)
-    setOfferEndTime(endTime)
-    setOfferDialogOpen(true)
-  }
-
-  function handleDelete(id: string, isRule: boolean, ruleId?: string | null) {
-    if (isRule && ruleId) {
-      startTransition(() => deleteShiftRule(ruleId))
-    } else {
-      startTransition(() => deleteShift(id))
-    }
-  }
-
-  function handleSkipInstance(ruleId: string, date: string) {
-    startTransition(() => skipRuleInstance(ruleId, date))
-  }
-
-  function handleToggle(id: string, status: "draft" | "published", isRule: boolean, ruleId?: string | null) {
-    if (isRule && ruleId) {
-      startTransition(() => toggleShiftRuleStatus(ruleId, status))
-    } else {
-      startTransition(() => toggleShiftStatus(id, status))
-    }
+  function openEditOpenShift(os: AdminOpenShift) {
+    setEditing({
+      id: os.id,
+      userId: null,
+      date: os.date,
+      startTime: os.startTime,
+      endTime: os.endTime,
+      note: os.note,
+      maxClaims: os.maxClaims,
+    })
+    setDefaultDate(undefined)
+    setDialogOpen(true)
   }
 
   function handlePublishAll() {
-    startTransition(async () => {
-      if (allDraftIds.length > 0) await publishDraftShifts(allDraftIds)
-      for (const ruleId of allDraftRuleIds) {
-        await toggleShiftRuleStatus(ruleId, "draft")
-      }
-    })
-  }
-
-  function handleApproveRequest(shiftId: string) {
-    startTransition(async () => {
-      try {
-        await approveShiftRequest(shiftId)
-        toast.success("Požiadavka schválená")
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Chyba")
-      }
-    })
-  }
-
-  function handleRejectRequest(shiftId: string) {
-    startTransition(async () => {
-      try {
-        await rejectShiftRequest(shiftId)
-        toast.success("Požiadavka zamietnutá")
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Chyba")
-      }
-    })
+    if (allDraftIds.length > 0) {
+      startTransition(() => publishDraftShifts(allDraftIds))
+    }
   }
 
   return (
@@ -508,16 +396,12 @@ export function AdminMonthCalendar({
             </div>
           )}
           <div className="flex items-center gap-2">
-            {(allDraftIds.length > 0 || allDraftRuleIds.length > 0) && (
+            {allDraftIds.length > 0 && (
               <Button variant="secondary" size="sm" onClick={handlePublishAll} disabled={isPending}>
                 <Send className="size-4" />
-                Publikovať všetky ({allDraftIds.length + allDraftRuleIds.length})
+                Publikovať všetky ({allDraftIds.length})
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={() => openOffer()}>
-              <CalendarPlus className="size-4" />
-              Ponuka zmeny
-            </Button>
             <Button size="sm" onClick={() => openCreate()}>
               <Plus className="size-4" />
               Nová zmena
@@ -562,7 +446,7 @@ export function AdminMonthCalendar({
                   </button>
                 </div>
 
-                {day.shifts.length === 0 && day.openShifts.length === 0 && day.requestedShifts.length === 0 ? (
+                {day.shifts.length === 0 && day.openShifts.length === 0 ? (
                   <p className="text-xs text-muted-foreground pl-10">Žiadne zmeny</p>
                 ) : (
                   <div className="flex flex-col gap-1.5 pl-10">
@@ -589,23 +473,16 @@ export function AdminMonthCalendar({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          {!(shift.isRecurring && shift.status === "published") && (
-                            <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
-                          )}
+                          <DropdownMenuItem onClick={() => openEdit(shift)}>Upraviť</DropdownMenuItem>
                           {shift.status === "draft" && (
-                            <DropdownMenuItem onClick={() => handleToggle(shift.id, "draft", shift.isRule, shift.ruleId)} disabled={isPending}>
+                            <DropdownMenuItem onClick={() => startTransition(() => toggleShiftStatus(shift.id, "draft"))} disabled={isPending}>
                               Publikovať
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
-                          {shift.isRecurring && (
-                            <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
-                          )}
-                          {!(shift.isRecurring && shift.status === "published") && (
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>
-                              {shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}
-                            </DropdownMenuItem>
-                          )}
+                          <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(shift.id))} disabled={isPending}>
+                            Odstrániť
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ))}
@@ -613,7 +490,10 @@ export function AdminMonthCalendar({
                       <div key={os.id} className="rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1.5 bg-muted/10">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-sm font-medium text-muted-foreground">Voľná zmena</div>
+                            <div className="text-sm font-medium text-muted-foreground">
+                              Voľná zmena
+                              {os.maxClaims > 1 && <span className="text-xs ml-1">({os.claims.length}/{os.maxClaims})</span>}
+                            </div>
                             <div className="text-xs text-muted-foreground/70">{os.startTime}–{os.endTime}</div>
                           </div>
                           <DropdownMenu>
@@ -623,37 +503,28 @@ export function AdminMonthCalendar({
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditRule({ id: os.id, ruleId: os.ruleId ?? null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: !!os.isRule })}>Upraviť</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditOpenShift(os)}>Upraviť</DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(os.id, !!os.isRule, os.ruleId)} disabled={isPending}>Odstrániť</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(os.id))} disabled={isPending}>Odstrániť</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
                         {os.claims.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-0.5">
                             {os.claims.map((claim) => (
-                              <span key={claim.claimId} className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
+                              <span key={claim.claimId} className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ backgroundColor: claim.color + "20", color: claim.color }}>
+                                {claim.userName.split(" ")[0]}
+                                <button
+                                  onClick={() => startTransition(() => adminRemoveClaim(claim.claimId))}
+                                  className="hover:opacity-60"
+                                  title="Odobrať"
+                                >
+                                  ×
+                                </button>
+                              </span>
                             ))}
                           </div>
                         )}
-                      </div>
-                    ))}
-                    {day.requestedShifts.map((rs) => (
-                      <div key={rs.id} className="rounded-lg border border-dashed border-amber-400/60 px-3 py-2 flex flex-col gap-1.5 bg-amber-50/50 dark:bg-amber-950/20">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm font-medium text-amber-700 dark:text-amber-400" style={{ color: rs.color }}>{rs.userName.split(" ")[0]} — požiadavka</div>
-                            <div className="text-xs text-muted-foreground">{rs.startTime}–{rs.endTime}</div>
-                          </div>
-                          <div className="flex gap-1">
-                            <button onClick={() => handleApproveRequest(rs.id)} disabled={isPending} className="p-1 rounded hover:bg-green-100 text-green-600">
-                              <Check className="size-4" />
-                            </button>
-                            <button onClick={() => handleRejectRequest(rs.id)} disabled={isPending} className="p-1 rounded hover:bg-red-100 text-destructive">
-                              <X className="size-4" />
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -685,7 +556,9 @@ export function AdminMonthCalendar({
                 const openShiftBlocks = day.openShifts.map((os) => (
                   <div key={os.id} className="rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background">
                     <div className="flex items-center justify-between gap-0.5">
-                      <span className="truncate text-muted-foreground font-medium text-[10px]">Voľná</span>
+                      <span className="truncate text-muted-foreground font-medium text-[10px]">
+                        Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}
+                      </span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button className="p-0.5 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
@@ -693,9 +566,9 @@ export function AdminMonthCalendar({
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditRule({ id: os.id, ruleId: os.ruleId ?? null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: !!os.isRule })}>Upraviť</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEditOpenShift(os)}>Upraviť</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(os.id, !!os.isRule, os.ruleId)} disabled={isPending}>Odstrániť</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(os.id))} disabled={isPending}>Odstrániť</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -707,21 +580,6 @@ export function AdminMonthCalendar({
                         ))}
                       </div>
                     )}
-                  </div>
-                ))
-
-                const requestedShiftBlocks = day.requestedShifts.map((rs) => (
-                  <div key={rs.id} className="rounded border border-dashed border-amber-400/60 px-1 py-0.5 text-xs leading-tight bg-amber-50/50 dark:bg-amber-950/20">
-                    <div className="truncate font-medium text-[10px]" style={{ color: rs.color }}>{rs.userName.split(" ")[0]} ⏳</div>
-                    <div className="opacity-70 text-[9px] text-amber-600">{rs.startTime}–{rs.endTime}</div>
-                    <div className="flex gap-0.5 mt-0.5">
-                      <button onClick={() => handleApproveRequest(rs.id)} disabled={isPending} className="text-green-600 hover:opacity-70 disabled:opacity-30">
-                        <Check className="size-2.5" />
-                      </button>
-                      <button onClick={() => handleRejectRequest(rs.id)} disabled={isPending} className="text-destructive hover:opacity-70 disabled:opacity-30">
-                        <X className="size-2.5" />
-                      </button>
-                    </div>
                   </div>
                 ))
 
@@ -744,23 +602,16 @@ export function AdminMonthCalendar({
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                      {!(shift.isRecurring && shift.status === "published") && (
-                        <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
-                      )}
-                          {shift.status === "draft" && (
-                            <DropdownMenuItem onClick={() => handleToggle(shift.id, "draft", shift.isRule, shift.ruleId)} disabled={isPending}>
-                              Publikovať
-                            </DropdownMenuItem>
-                          )}
-                      <DropdownMenuSeparator />
-                      {shift.isRecurring && (
-                        <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
-                      )}
-                      {!(shift.isRecurring && shift.status === "published") && (
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(shift.id, shift.isRule, shift.ruleId)} disabled={isPending}>
-                          {shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}
+                      <DropdownMenuItem onClick={() => openEdit(shift)}>Upraviť</DropdownMenuItem>
+                      {shift.status === "draft" && (
+                        <DropdownMenuItem onClick={() => startTransition(() => toggleShiftStatus(shift.id, "draft"))} disabled={isPending}>
+                          Publikovať
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(shift.id))} disabled={isPending}>
+                        Odstrániť
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ))
@@ -806,11 +657,10 @@ export function AdminMonthCalendar({
                         <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
                           {shiftBlocks}
                           {openShiftBlocks}
-                          {requestedShiftBlocks}
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-0.5">{shiftBlocks}{openShiftBlocks}{requestedShiftBlocks}</div>
+                      <div className="flex flex-col gap-0.5">{shiftBlocks}{openShiftBlocks}</div>
                     )}
                   </div>
                 )
@@ -824,7 +674,6 @@ export function AdminMonthCalendar({
           const allEntries = currentWeek.flatMap(d => [
             ...d.shifts.map(s => ({ start: s.startTime, end: s.endTime })),
             ...d.openShifts.map(s => ({ start: s.startTime, end: s.endTime })),
-            ...d.requestedShifts.map(s => ({ start: s.startTime, end: s.endTime })),
           ])
           currentWeek.forEach(day => {
             const dow = String(new Date(day.date + "T12:00:00").getDay())
@@ -879,13 +728,11 @@ export function AdminMonthCalendar({
                 {currentWeek.map((day) => {
                   type TaggedShift = AdminCalendarShift & { _type: "shift" }
                   type TaggedOpen = AdminOpenShift & { _type: "open" }
-                  type TaggedReq = AdminRequestedShift & { _type: "requested" }
-                  type TaggedItem = TaggedShift | TaggedOpen | TaggedReq
+                  type TaggedItem = TaggedShift | TaggedOpen
 
                   const allItems: TaggedItem[] = [
                     ...day.shifts.map(s => ({ ...s, _type: "shift" as const })),
                     ...day.openShifts.map(s => ({ ...s, _type: "open" as const })),
-                    ...day.requestedShifts.map(s => ({ ...s, _type: "requested" as const })),
                   ]
                   const lanes = assignLanes(allItems)
 
@@ -943,41 +790,26 @@ export function AdminMonthCalendar({
                                   <div className="mx-auto mt-0.5 w-6 h-1 rounded-full" style={{ backgroundColor: shift.color + "80" }} />
                                 </div>
 
-                                {/* Hover action buttons — Tempo style */}
+                                {/* Hover action buttons */}
                                 <div className="absolute top-0.5 right-0.5 z-20 hidden group-hover/block:flex gap-0.5 rounded-sm p-0.5" style={{ backgroundColor: shift.color + "40" }}>
-                                  {!(shift.isRecurring && shift.status === "published") && (
-                                    <button
-                                      data-action-btn
-                                      title={shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}
-                                      className="rounded p-0.5 hover:bg-white/30 transition-colors"
-                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                                      onClick={(e) => { e.stopPropagation(); openEditRule(shift) }}
-                                    >
-                                      <Pencil className="size-3" />
-                                    </button>
-                                  )}
-                                  {shift.isRecurring && (
-                                    <button
-                                      data-action-btn
-                                      title="Odstrániť túto zmenu"
-                                      className="rounded p-0.5 hover:bg-white/30 transition-colors"
-                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                                      onClick={(e) => { e.stopPropagation(); handleSkipInstance(shift.ruleId!, shift.date) }}
-                                    >
-                                      <CalendarX className="size-3" />
-                                    </button>
-                                  )}
-                                  {!(shift.isRecurring && shift.status === "published") && (
-                                    <button
-                                      data-action-btn
-                                      title={shift.isRecurring ? "Odstrániť pravidlo" : "Odstrániť"}
-                                      className="rounded p-0.5 hover:bg-red-400/40 transition-colors"
-                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                                      onClick={(e) => { e.stopPropagation(); handleDelete(shift.id, shift.isRule, shift.ruleId) }}
-                                    >
-                                      <Trash2 className="size-3" />
-                                    </button>
-                                  )}
+                                  <button
+                                    data-action-btn
+                                    title="Upraviť"
+                                    className="rounded p-0.5 hover:bg-white/30 transition-colors"
+                                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                    onClick={(e) => { e.stopPropagation(); openEdit(shift) }}
+                                  >
+                                    <Pencil className="size-3" />
+                                  </button>
+                                  <button
+                                    data-action-btn
+                                    title="Odstrániť"
+                                    className="rounded p-0.5 hover:bg-red-400/40 transition-colors"
+                                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                                    onClick={(e) => { e.stopPropagation(); startTransition(() => deleteShift(shift.id)) }}
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </button>
                                 </div>
 
                                 <div className="font-semibold truncate leading-tight pr-4">{shift.userName}</div>
@@ -1010,41 +842,25 @@ export function AdminMonthCalendar({
                                   <button
                                     title="Upraviť"
                                     className="rounded p-0.5 hover:bg-muted transition-colors text-muted-foreground"
-                                    onClick={() => openEditRule({ id: os.id, ruleId: os.ruleId ?? null, userId: "", userName: "", date: os.date, startTime: os.startTime, endTime: os.endTime, note: os.note, status: "open", color: "", isRule: !!os.isRule })}
+                                    onClick={() => openEditOpenShift(os)}
                                   >
                                     <Pencil className="size-3" />
                                   </button>
                                   <button
                                     title="Odstrániť"
                                     className="rounded p-0.5 hover:bg-red-400/40 transition-colors text-destructive"
-                                    onClick={() => handleDelete(os.id, !!os.isRule, os.ruleId)}
+                                    onClick={() => startTransition(() => deleteShift(os.id))}
                                   >
                                     <Trash2 className="size-3" />
                                   </button>
                                 </div>
-                                <div className="font-medium text-muted-foreground leading-tight">Voľná</div>
+                                <div className="font-medium text-muted-foreground leading-tight">
+                                  Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}
+                                </div>
                                 <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (
                                   <span key={claim.claimId} className="text-[10px] px-1 py-0.5 rounded mt-0.5 inline-block" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
                                 ))}
-                              </div>
-                            )
-                          }
-
-                          if (item._type === "requested") {
-                            const rs = item
-                            return (
-                              <div
-                                key={rs.id}
-                                className="absolute rounded-md border border-dashed border-amber-400/60 px-1.5 py-0.5 text-xs bg-amber-50/50 dark:bg-amber-950/20 overflow-hidden pointer-events-auto"
-                                style={{ top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)` }}
-                              >
-                                <div className="font-medium truncate leading-tight" style={{ color: rs.color }}>{rs.userName.split(" ")[0]} ⏳</div>
-                                <div className="text-muted-foreground text-[10px] leading-tight">{rs.startTime}–{rs.endTime}</div>
-                                <div className="flex gap-0.5 mt-0.5">
-                                  <button onClick={() => handleApproveRequest(rs.id)} disabled={isPending} className="text-green-600 hover:opacity-70"><Check className="size-3" /></button>
-                                  <button onClick={() => handleRejectRequest(rs.id)} disabled={isPending} className="text-destructive hover:opacity-70"><X className="size-3" /></button>
-                                </div>
                               </div>
                             )
                           }
@@ -1084,13 +900,6 @@ export function AdminMonthCalendar({
         defaultDate={defaultDate}
         defaultStartTime={defaultStartTime}
         defaultEndTime={defaultEndTime}
-      />
-      <OfferShiftDialog
-        open={offerDialogOpen}
-        onOpenChange={setOfferDialogOpen}
-        defaultDate={offerDate}
-        defaultStartTime={offerStartTime}
-        defaultEndTime={offerEndTime}
       />
     </>
   )
