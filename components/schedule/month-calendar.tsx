@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
 import type { ColleagueOption } from "@/components/shift-replacement/request-dialog"
-import { claimShift, unclaimShift } from "@/app/actions/schedule"
+import { claimShift } from "@/app/actions/schedule"
 import { toast } from "sonner"
 import { ShiftDialog } from "./shift-dialog"
 
@@ -224,17 +224,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     })
   }
 
-  function handleUnclaim(shiftId: string) {
-    startTransition(async () => {
-      try {
-        await unclaimShift(shiftId)
-        toast.success("Prihlásenie zrušené")
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Chyba pri odhlasovaní")
-      }
-    })
-  }
-
   function openLeave(day: CalendarDay, shift: CalendarShift) {
     setLeaveCtx({
       date: day.date,
@@ -423,15 +412,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               {os.maxClaims > 1 && <span className="ml-1 text-xs opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </div>
                             {canClaim && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
-                            {isClaimed && (
-                              <button
-                                className="text-xs text-muted-foreground flex items-center gap-1 hover:text-destructive transition-colors"
-                                onClick={(e) => { e.stopPropagation(); handleUnclaim(os.id) }}
-                                disabled={isPending}
-                              >
-                                <Check className="size-3" /> Odhlásiť sa
-                              </button>
-                            )}
+                            {isClaimed && <Check className="size-3.5 text-green-600 shrink-0" />}
                           </div>
                           <div className="text-xs text-muted-foreground">{os.startTime}–{os.endTime}</div>
                           {os.claimedByUsers.length > 0 && (
@@ -705,15 +686,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               </div>
                               <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
                               {canClaimTl && <div className="text-primary font-medium text-xs mt-0.5">Prihlásiť sa</div>}
-                              {isClaimed && (
-                                <button
-                                  className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5 hover:text-destructive transition-colors pointer-events-auto"
-                                  onClick={(e) => { e.stopPropagation(); handleUnclaim(os.id) }}
-                                  disabled={isPending}
-                                >
-                                  <Check className="size-2.5" /> Odhlásiť sa
-                                </button>
-                              )}
+                              {isClaimed && <div className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
                               {os.claimedByUsers.length > 0 && (
                                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                                   {os.claimedByUsers.map((u) => (
@@ -744,15 +717,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             >
                               <div className="font-semibold truncate leading-tight">{fc.userName}</div>
                               <div className="opacity-80 leading-tight text-xs">{fc.startTime}–{fc.endTime}</div>
-                              {isMe && (
-                                <button
-                                  className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5 hover:text-destructive transition-colors pointer-events-auto"
-                                  onClick={() => handleUnclaim(fc.openShift.id)}
-                                  disabled={isPending}
-                                >
-                                  <Check className="size-2.5" /> Odhlásiť sa
-                                </button>
-                              )}
+                              {isMe && <div className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
                             </div>
                           )
                         }
