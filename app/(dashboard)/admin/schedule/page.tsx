@@ -224,7 +224,7 @@ export default async function AdminSchedulePage({
           const concreteShift = monthShifts.find(
             (s) => s.date === dateStr && s.status === "open" && shortTime(s.startTime) === ri.startTime && shortTime(s.endTime) === ri.endTime,
           )
-          const claimsForShift = concreteShift ? pendingClaims.filter((c) => c.shiftId === concreteShift.id) : []
+          const claimsForShift = concreteShift ? pendingClaims.filter((c) => c.shiftId === concreteShift.id && c.status === "approved") : []
           if (concreteShift) consumedConcreteIds.add(concreteShift.id)
           return {
             id: `rule:${ri.ruleId}:${dateStr}`,
@@ -245,7 +245,7 @@ export default async function AdminSchedulePage({
       const legacyOpenShifts: AdminOpenShift[] = monthShifts
         .filter((s) => s.date === dateStr && s.status === "open" && !consumedConcreteIds.has(s.id))
         .map((s) => {
-          const claimsForShift = pendingClaims.filter((c) => c.shiftId === s.id)
+          const claimsForShift = pendingClaims.filter((c) => c.shiftId === s.id && c.status === "approved")
           return {
             id: s.id,
             date: dateStr,

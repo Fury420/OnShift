@@ -514,7 +514,10 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                           className={cn("rounded border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-xs leading-tight bg-background", canClaimGrid && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
                           onClick={canClaimGrid ? () => handleClaim(os) : undefined}>
                           <div className="flex items-center justify-between gap-0.5">
-                            <span className="truncate text-muted-foreground font-medium">{isFull ? "Obsadená" : "Voľná"}</span>
+                            <span className="truncate text-muted-foreground font-medium">
+                              {isFull ? "Obsadená" : "Voľná"}
+                              {os.maxClaims > 1 && <span className="ml-0.5 text-[10px] opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
+                            </span>
                             {os.myClaimId && <Check className="size-2.5 text-green-600 shrink-0" />}
                           </div>
                           <div className="opacity-60">{os.startTime}–{os.endTime}</div>

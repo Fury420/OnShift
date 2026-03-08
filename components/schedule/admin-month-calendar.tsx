@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift-dialog"
 import { OfferShiftDialog } from "./offer-shift-dialog"
-import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftClaim, rejectShiftClaim, approveShiftRequest, rejectShiftRequest, updateShift } from "@/app/actions/schedule"
+import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftRequest, rejectShiftRequest, updateShift } from "@/app/actions/schedule"
 import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
 import { Check, X, Pencil, Eye, EyeOff, Trash2, CalendarX, CalendarPlus } from "lucide-react"
 import { toast } from "sonner"
@@ -651,19 +651,9 @@ export function AdminMonthCalendar({
                           </DropdownMenu>
                         </div>
                         {os.claims.length > 0 && (
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-wrap gap-1 mt-0.5">
                             {os.claims.map((claim) => (
-                              <div key={claim.claimId} className="flex items-center justify-between gap-2 rounded px-2 py-1" style={{ backgroundColor: claim.color + "18" }}>
-                                <span className="text-xs font-medium" style={{ color: claim.color }}>{claim.userName.split(" ")[0]} ⏳</span>
-                                <div className="flex gap-1">
-                                  <button onClick={() => handleApprove(claim.claimId)} disabled={isPending} className="p-0.5 rounded hover:bg-green-100 text-green-600">
-                                    <Check className="size-3.5" />
-                                  </button>
-                                  <button onClick={() => handleReject(claim.claimId)} disabled={isPending} className="p-0.5 rounded hover:bg-red-100 text-destructive">
-                                    <X className="size-3.5" />
-                                  </button>
-                                </div>
-                              </div>
+                              <span key={claim.claimId} className="text-xs px-1.5 py-0.5 rounded-full" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
                             ))}
                           </div>
                         )}
@@ -731,17 +721,13 @@ export function AdminMonthCalendar({
                       </DropdownMenu>
                     </div>
                     <div className="opacity-60 text-[9px]">{os.startTime}–{os.endTime}</div>
-                    {os.claims.map((claim) => (
-                      <div key={claim.claimId} className="flex items-center gap-0.5 mt-0.5">
-                        <span className="truncate text-[9px] flex-1" style={{ color: claim.color }}>{claim.userName.split(" ")[0]} ⏳</span>
-                        <button onClick={() => handleApprove(claim.claimId)} disabled={isPending} className="text-green-600 hover:opacity-70 disabled:opacity-30">
-                          <Check className="size-2.5" />
-                        </button>
-                        <button onClick={() => handleReject(claim.claimId)} disabled={isPending} className="text-destructive hover:opacity-70 disabled:opacity-30">
-                          <X className="size-2.5" />
-                        </button>
+                    {os.claims.length > 0 && (
+                      <div className="flex flex-wrap gap-0.5 mt-0.5">
+                        {os.claims.map((claim) => (
+                          <span key={claim.claimId} className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 ))
 
@@ -1071,13 +1057,7 @@ export function AdminMonthCalendar({
                                 <div className="font-medium text-muted-foreground leading-tight">Voľná</div>
                                 <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (
-                                  <div key={claim.claimId} className="flex items-center justify-between gap-0.5 mt-0.5 rounded px-1 py-0.5" style={{ backgroundColor: claim.color + "18" }}>
-                                    <span className="text-[10px] font-medium truncate" style={{ color: claim.color }}>{claim.userName.split(" ")[0]} ⏳</span>
-                                    <div className="flex gap-0.5 shrink-0">
-                                      <button onClick={() => handleApprove(claim.claimId)} disabled={isPending} className="text-green-600 hover:opacity-70"><Check className="size-3" /></button>
-                                      <button onClick={() => handleReject(claim.claimId)} disabled={isPending} className="text-destructive hover:opacity-70"><X className="size-3" /></button>
-                                    </div>
-                                  </div>
+                                  <span key={claim.claimId} className="text-[10px] px-1 py-0.5 rounded mt-0.5 inline-block" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
                                 ))}
                               </div>
                             )

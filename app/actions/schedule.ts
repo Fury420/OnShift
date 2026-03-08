@@ -256,50 +256,6 @@ export async function claimRuleShift(ruleId: string, date: string, startTime: st
   revalidatePath("/admin/schedule")
 }
 
-export async function approveShiftClaim(claimId: string) {
-  await requireAdmin()
-  const orgId = await getOrganizationId()
-
-  const [claim] = await db
-    .select({ id: openShiftClaims.id, shiftId: openShiftClaims.shiftId, claimedByUserId: openShiftClaims.claimedByUserId })
-    .from(openShiftClaims)
-    .where(and(eq(openShiftClaims.id, claimId), eq(openShiftClaims.organizationId, orgId)))
-    .limit(1)
-  if (!claim) throw new Error("Prihlásenie nenájdené")
-
-  await db
-    .update(shifts)
-    .set({ userId: claim.claimedByUserId, status: "published", updatedAt: new Date() })
-    .where(and(eq(shifts.id, claim.shiftId), eq(shifts.organizationId, orgId)))
-
-  await db
-    .update(openShiftClaims)
-    .set({ status: "approved", updatedAt: new Date() })
-    .where(eq(openShiftClaims.id, claimId))
-
-  // Reject all other pending claims for the same shift
-  await db
-    .update(openShiftClaims)
-    .set({ status: "rejected", updatedAt: new Date() })
-    .where(and(eq(openShiftClaims.shiftId, claim.shiftId), ne(openShiftClaims.id, claimId), eq(openShiftClaims.status, "pending")))
-
-  revalidatePath("/admin/schedule")
-  revalidatePath("/schedule")
-}
-
-export async function rejectShiftClaim(claimId: string) {
-  await requireAdmin()
-  const orgId = await getOrganizationId()
-
-  await db
-    .update(openShiftClaims)
-    .set({ status: "rejected", updatedAt: new Date() })
-    .where(and(eq(openShiftClaims.id, claimId), eq(openShiftClaims.organizationId, orgId)))
-
-  revalidatePath("/admin/schedule")
-  revalidatePath("/schedule")
-}
-
 export async function deleteShift(id: string) {
   await requireAdmin()
   const orgId = await getOrganizationId()
