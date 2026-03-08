@@ -107,7 +107,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         setEndTime(shift.endTime?.slice(0, 5) ?? "")
         setAllDay(shift.allDay)
       } else {
-        setUserId(fixedUserId ?? employees[0]?.id ?? OPEN_SHIFT_VALUE)
+        setUserId(fixedUserId ?? employees[0]?.id ?? "")
         setFrequency("once")
         setDate(defaultDate ?? "")
         setSelectedDays([])
@@ -247,9 +247,6 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
                   <SelectValue placeholder="Vyberte zamestnanca" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={OPEN_SHIFT_VALUE}>
-                    <span className="text-muted-foreground">Voľná zmena (bez zamestnanca)</span>
-                  </SelectItem>
                   {employees.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
                       {e.name}

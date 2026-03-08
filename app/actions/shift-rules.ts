@@ -36,22 +36,42 @@ export async function createShiftRule(data: {
   await requireAdmin()
   const orgId = await getOrganizationId()
 
-  await db.insert(shiftRules).values({
-    organizationId: orgId,
-    userId: data.userId ?? null,
-    frequency: data.frequency,
-    date: data.frequency === "once" ? (data.date ?? null) : null,
-    days: data.frequency === "weekly" ? (data.days ?? null) : null,
-    dayOfMonth: data.frequency === "monthly" ? (data.dayOfMonth ?? null) : null,
-    validFrom: data.frequency !== "once" ? (data.validFrom ?? null) : null,
-    validUntil: data.frequency !== "once" ? (data.validUntil ?? null) : null,
-    startTime: data.allDay ? null : (data.startTime ?? null),
-    endTime: data.allDay ? null : (data.endTime ?? null),
-    allDay: data.allDay,
-    note: data.note || null,
-    maxClaims: data.maxClaims ?? 1,
-    status: data.userId ? "draft" : "open",
-  })
+  try {
+    await db.insert(shiftRules).values({
+      organizationId: orgId,
+      userId: data.userId ?? null,
+      frequency: data.frequency,
+      date: data.frequency === "once" ? (data.date ?? null) : null,
+      days: data.frequency === "weekly" ? (data.days ?? null) : null,
+      dayOfMonth: data.frequency === "monthly" ? (data.dayOfMonth ?? null) : null,
+      validFrom: data.frequency !== "once" ? (data.validFrom ?? null) : null,
+      validUntil: data.frequency !== "once" ? (data.validUntil ?? null) : null,
+      startTime: data.allDay ? null : (data.startTime ?? null),
+      endTime: data.allDay ? null : (data.endTime ?? null),
+      allDay: data.allDay,
+      note: data.note || null,
+      maxClaims: data.maxClaims ?? 1,
+      status: data.userId ? "draft" : "open",
+    })
+  } catch {
+    // Fallback for production without max_claims column migration
+    const values: Record<string, unknown> = {
+      organizationId: orgId,
+      userId: data.userId ?? null,
+      frequency: data.frequency,
+      date: data.frequency === "once" ? (data.date ?? null) : null,
+      days: data.frequency === "weekly" ? (data.days ?? null) : null,
+      dayOfMonth: data.frequency === "monthly" ? (data.dayOfMonth ?? null) : null,
+      validFrom: data.frequency !== "once" ? (data.validFrom ?? null) : null,
+      validUntil: data.frequency !== "once" ? (data.validUntil ?? null) : null,
+      startTime: data.allDay ? null : (data.startTime ?? null),
+      endTime: data.allDay ? null : (data.endTime ?? null),
+      allDay: data.allDay,
+      note: data.note || null,
+      status: data.userId ? "draft" : "open",
+    }
+    await db.insert(shiftRules).values(values as typeof shiftRules.$inferInsert)
+  }
 
   revalidateSchedule()
 }
