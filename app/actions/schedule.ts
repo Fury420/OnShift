@@ -1,8 +1,8 @@
 "use server"
 
 import { db } from "@/db"
-import { shifts, openShiftClaims } from "@/db/schema"
-import { eq, inArray, and, lt, gt, ne, isNotNull, isNull } from "drizzle-orm"
+import { shifts, openShiftClaims, leaves } from "@/db/schema"
+import { eq, inArray, and, lt, gt, ne, isNotNull, isNull, lte, gte } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
@@ -36,6 +36,23 @@ async function checkConflict(
   if (conflict) throw new Error("Tento zamestnanec má v tomto čase už inú zmenu.")
 }
 
+async function checkLeaveOverlap(organizationId: string, userId: string, date: string): Promise<boolean> {
+  const [overlap] = await db
+    .select({ id: leaves.id })
+    .from(leaves)
+    .where(
+      and(
+        eq(leaves.organizationId, organizationId),
+        eq(leaves.userId, userId),
+        eq(leaves.status, "approved"),
+        lte(leaves.startDate, date),
+        gte(leaves.endDate, date),
+      ),
+    )
+    .limit(1)
+  return !!overlap
+}
+
 // ─── Create shift ───────────────────────────────────────────────────────────
 
 export async function createShift(data: {
@@ -50,6 +67,9 @@ export async function createShift(data: {
   const orgId = await getOrganizationId()
   if (data.userId) {
     await checkConflict(data.userId, data.date, data.startTime, data.endTime)
+    if (await checkLeaveOverlap(orgId, data.userId, data.date)) {
+      throw new Error("Zamestnanec má v tento deň schválené voľno (dovolenka). Zmenu nie je možné naplánovať.")
+    }
   }
 
   await db.insert(shifts).values({
@@ -105,6 +125,10 @@ export async function createShiftsBatch(data: {
           cur = addDays(cur, 1)
           continue
         }
+        if (await checkLeaveOverlap(orgId, data.userId, dateStr)) {
+          cur = addDays(cur, 1)
+          continue
+        }
       }
       await db.insert(shifts).values({
         organizationId: orgId,
@@ -135,6 +159,9 @@ export async function updateShift(
   const orgId = await getOrganizationId()
   if (data.userId) {
     await checkConflict(data.userId, data.date, data.startTime, data.endTime, id)
+    if (await checkLeaveOverlap(orgId, data.userId, data.date)) {
+      throw new Error("Zamestnanec má v tento deň schválené voľno (dovolenka). Zmenu nie je možné naplánovať.")
+    }
   }
 
   // If changing from open to assigned, remove existing claims
