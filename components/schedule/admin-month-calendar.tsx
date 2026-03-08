@@ -43,6 +43,7 @@ export interface AdminOpenShift {
   endTime: string
   note: string | null
   claims: { claimId: string; userId: string; userName: string; color: string }[]
+  maxClaims: number
   isRule?: boolean
   ruleId?: string | null
 }

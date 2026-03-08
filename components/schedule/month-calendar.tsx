@@ -411,7 +411,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     </button>
                   )}
                 </div>
-                {day.shifts.length === 0 && day.openShifts.length === 0 && day.requestedShifts.length === 0 ? (
+                {day.shifts.length === 0 && day.openShifts.filter((os) => os.acceptedCount < os.maxClaims).length === 0 && day.requestedShifts.length === 0 ? (
                   <p className="text-xs text-muted-foreground pl-10">Žiadne zmeny</p>
                 ) : (
                   <div className="flex flex-col gap-1.5 pl-10">
@@ -435,16 +435,15 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         <div className="text-xs text-muted-foreground">{rs.startTime}–{rs.endTime}</div>
                       </div>
                     ))}
-                    {day.openShifts.map((os) => {
-                      const isFull = os.acceptedCount >= os.maxClaims
-                      const canClaim = os.iMayClaim && !isPast && !isFull
+                    {day.openShifts.filter((os) => os.acceptedCount < os.maxClaims).map((os) => {
+                      const canClaim = os.iMayClaim && !isPast
                       return (
                         <div key={os.id}
                           className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1 bg-muted/10", canClaim && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
                           onClick={canClaim ? () => handleClaim(os) : undefined}>
                           <div className="flex items-center justify-between">
                             <div className="text-sm font-medium text-muted-foreground">
-                              {isFull ? "Obsadená" : "Voľná zmena"}
+                              Voľná zmena
                               {os.maxClaims > 1 && <span className="ml-1 text-xs opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </div>
                             {canClaim && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
@@ -506,16 +505,15 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         <div className="opacity-70 text-amber-600">{rs.startTime}–{rs.endTime}</div>
                       </div>
                     ))}
-                    {day.openShifts.map((os) => {
-                      const isFull = os.acceptedCount >= os.maxClaims
-                      const canClaimGrid = os.iMayClaim && !isPast && !isFull
+                    {day.openShifts.filter((os) => os.acceptedCount < os.maxClaims).map((os) => {
+                      const canClaimGrid = os.iMayClaim && !isPast
                       return (
                         <div key={os.id}
                           className={cn("rounded border border-dashed border-muted-foreground/40 px-1.5 py-0.5 text-xs leading-tight bg-background", canClaimGrid && "cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors")}
                           onClick={canClaimGrid ? () => handleClaim(os) : undefined}>
                           <div className="flex items-center justify-between gap-0.5">
                             <span className="truncate text-muted-foreground font-medium">
-                              {isFull ? "Obsadená" : "Voľná"}
+                              Voľná
                               {os.maxClaims > 1 && <span className="ml-0.5 text-[10px] opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </span>
                             {os.myClaimId && <Check className="size-2.5 text-green-600 shrink-0" />}
@@ -566,7 +564,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
       {view === "week" && (() => {
         const allEntries = currentWeek.flatMap(d => [
           ...d.shifts.map(s => ({ start: s.startTime, end: s.endTime })),
-          ...d.openShifts.map(s => ({ start: s.startTime, end: s.endTime })),
+          ...d.openShifts.filter(os => os.acceptedCount < os.maxClaims).map(s => ({ start: s.startTime, end: s.endTime })),
           ...d.requestedShifts.map(s => ({ start: s.startTime, end: s.endTime })),
         ])
         currentWeek.forEach(day => {
@@ -630,7 +628,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
                 const allItems: TaggedItem[] = [
                   ...day.shifts.map(s => ({ ...s, _type: "shift" as const })),
-                  ...day.openShifts.map(s => ({ ...s, _type: "open" as const })),
+                  ...day.openShifts.filter(os => os.acceptedCount < os.maxClaims).map(s => ({ ...s, _type: "open" as const })),
                   ...day.requestedShifts.map(s => ({ ...s, _type: "requested" as const })),
                 ]
                 const lanes = assignLanes(allItems)
@@ -686,8 +684,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
                         if (item._type === "open") {
                           const os = item
-                          const isFull = os.acceptedCount >= os.maxClaims
-                          const canClaimTl = os.iMayClaim && !isPast && !isFull
+                          const canClaimTl = os.iMayClaim && !isPast
                           return (
                             <div
                               key={os.id}
@@ -699,7 +696,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               onClick={canClaimTl ? () => handleClaim(os) : undefined}
                             >
                               <div className="font-medium text-muted-foreground leading-tight">
-                                {isFull ? "Obsadená" : "Voľná"}
+                                Voľná
                                 {os.maxClaims > 1 && <span className="ml-0.5 opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                               </div>
                               <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>

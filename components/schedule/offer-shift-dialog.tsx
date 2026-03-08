@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStartTime, defaultEndTime }: Props) {
+  const router = useRouter()
   const [frequency, setFrequency] = useState<"once" | "weekly">("once")
   const [date, setDate] = useState("")
   const [selectedDays, setSelectedDays] = useState<number[]>([])
@@ -119,6 +121,7 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
           note: undefined,
           maxClaims,
         })
+        router.refresh()
         onOpenChange(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Nastala chyba")

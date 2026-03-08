@@ -34,6 +34,7 @@ export default async function AdminSchedulePage({
         endTime: shifts.endTime,
         note: shifts.note,
         status: shifts.status,
+        maxClaims: shifts.maxClaims,
       })
       .from(shifts)
       .where(and(eq(shifts.organizationId, orgId), gte(shifts.date, startDate), lte(shifts.date, endDate)))
@@ -226,6 +227,7 @@ export default async function AdminSchedulePage({
           )
           const claimsForShift = concreteShift ? pendingClaims.filter((c) => c.shiftId === concreteShift.id && c.status === "approved") : []
           if (concreteShift) consumedConcreteIds.add(concreteShift.id)
+          const mc = ri.maxClaims ?? 1
           return {
             id: `rule:${ri.ruleId}:${dateStr}`,
             date: dateStr,
@@ -234,6 +236,7 @@ export default async function AdminSchedulePage({
             note: ri.note,
             isRule: true,
             ruleId: ri.ruleId,
+            maxClaims: mc,
             claims: claimsForShift.map((c) => {
               const emp = colorMap.get(c.claimedByUserId)
               return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
@@ -246,6 +249,7 @@ export default async function AdminSchedulePage({
         .filter((s) => s.date === dateStr && s.status === "open" && !consumedConcreteIds.has(s.id))
         .map((s) => {
           const claimsForShift = pendingClaims.filter((c) => c.shiftId === s.id && c.status === "approved")
+          const mc = (s as { maxClaims?: number }).maxClaims ?? 1
           return {
             id: s.id,
             date: dateStr,
@@ -254,6 +258,7 @@ export default async function AdminSchedulePage({
             note: s.note,
             isRule: false,
             ruleId: null,
+            maxClaims: mc,
             claims: claimsForShift.map((c) => {
               const emp = colorMap.get(c.claimedByUserId)
               return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
@@ -261,7 +266,8 @@ export default async function AdminSchedulePage({
           }
         })
 
-      const dayOpenShifts = [...legacyOpenShifts, ...ruleOpenShifts]
+      const allOpenShifts = [...legacyOpenShifts, ...ruleOpenShifts]
+      const dayOpenShifts = allOpenShifts.filter((os) => os.claims.length < os.maxClaims)
 
       return {
         date: dateStr,

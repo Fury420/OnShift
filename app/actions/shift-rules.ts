@@ -8,8 +8,8 @@ import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
 
 function revalidateSchedule() {
-  revalidatePath("/admin/schedule")
-  revalidatePath("/schedule")
+  revalidatePath("/admin/schedule", "layout")
+  revalidatePath("/schedule", "layout")
 }
 
 // ─── Create rule ─────────────────────────────────────────────────────────────

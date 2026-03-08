@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -81,6 +82,7 @@ function toDateStr(d: Date): string {
 
 export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId }: ShiftDialogProps) {
   const isEdit = !!shift
+  const router = useRouter()
 
   const [userId, setUserId] = useState("")
   const [frequency, setFrequency] = useState<"once" | "weekly">("once")
@@ -184,7 +186,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             userId: resolvedUserId,
             frequency,
             date: frequency === "once" ? date : undefined,
-            days: frequency === "weekly" ? selectedDays.join(",") : undefined,
+            days: frequency === "weekly" ? (selectedDays.length > 0 ? selectedDays.join(",") : "0,1,2,3,4,5,6") : undefined,
             validFrom: frequency !== "once" ? validFrom || undefined : undefined,
             validUntil: frequency !== "once" ? validUntil || undefined : undefined,
             startTime: allDay ? undefined : startTime,
@@ -193,6 +195,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             note: undefined,
           })
         }
+        router.refresh()
         onOpenChange(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : "Nastala chyba")
