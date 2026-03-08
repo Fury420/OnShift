@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shifts, user, leaves, openShiftClaims } from "@/db/schema"
+import { shifts, user, leaves, openShiftClaims, businessHours } from "@/db/schema"
 import { eq, and, gte, lte, asc } from "drizzle-orm"
 import { getSession } from "@/lib/session"
 import { getOrganizationId } from "@/lib/auth-guard"
@@ -28,7 +28,7 @@ export default async function SchedulePage({
   const endDate = toDateStr(weeks[weeks.length - 1][6])
   const todayStr = toDateStr(new Date())
 
-  const [monthShifts, openMonthShifts, approvedClaims, employees, approvedLeaves] = await Promise.all([
+  const [monthShifts, openMonthShifts, approvedClaims, employees, approvedLeaves, orgBusinessHours] = await Promise.all([
     // Published shifts (assigned to employees)
     db
       .select({
@@ -87,6 +87,12 @@ export default async function SchedulePage({
       .select({ userId: leaves.userId, startDate: leaves.startDate, endDate: leaves.endDate })
       .from(leaves)
       .where(and(eq(leaves.organizationId, orgId), eq(leaves.status, "approved"), lte(leaves.startDate, endDate), gte(leaves.endDate, startDate))),
+
+    // Otváracie hodiny (pre časové rozmedzie kalendára)
+    db
+      .select()
+      .from(businessHours)
+      .where(eq(businessHours.organizationId, orgId)),
   ])
 
   const onLeave = (userId: string, date: string) =>
@@ -150,6 +156,8 @@ export default async function SchedulePage({
     }),
   )
 
+  const bhMap = new Map(orgBusinessHours.map((r) => [r.dayOfWeek, r]))
+
   const prevMonth =
     monthNum === 1
       ? `${year - 1}-12`
@@ -166,6 +174,7 @@ export default async function SchedulePage({
       prevMonth={prevMonth}
       nextMonth={nextMonth}
       allEmployees={employees.map((e) => ({ id: e.id, name: e.name }))}
+      businessHours={bhMap}
       currentUserId={session.user.id}
       canCreateShifts={isAdmin}
     />

@@ -70,7 +70,7 @@ interface ReplacementContext {
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
 const HOUR_HEIGHT = 56
-const VISIBLE_HOURS = 10
+const VISIBLE_HOURS = 8
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number)
@@ -604,10 +604,11 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         const yPos = (time: string) => PAD + ((timeToMinutes(time) - startHour * 60) / 60) * HOUR_HEIGHT
         const hPos = (start: string, end: string) => yPos(end) - yPos(start)
 
+        const gridCols = "grid-cols-[48px_repeat(7,1fr)_16px]"
         return (
           <div className="rounded-xl border overflow-hidden" ref={timelineRef}>
             {/* Header */}
-            <div className="grid grid-cols-[48px_repeat(7,1fr)] bg-muted/50 border-b">
+            <div className={cn("grid bg-muted/50 border-b", gridCols)}>
               <div />
               {currentWeek.map((day) => {
                 const dateObj = new Date(day.date + "T12:00:00")
@@ -620,12 +621,13 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                   </div>
                 )
               })}
+              <div className="border-l bg-muted/30 w-4 shrink-0" aria-hidden />
             </div>
 
-            {/* Timeline body – výška cca 10 hodín, vertikálny scroll, začína od začiatku pracovných hodín */}
+            {/* Timeline body – výška 8 hodín, vertikálny scroll, začína od začiatku pracovných hodín */}
             <div
               ref={timelineScrollRef}
-              className="grid grid-cols-[48px_repeat(7,1fr)] overflow-y-auto overflow-x-hidden"
+              className={cn("grid overflow-y-auto overflow-x-hidden", gridCols)}
               style={{ maxHeight: visibleHeight, minHeight: Math.min(visibleHeight, totalHeight) }}
             >
               {/* Hour labels */}
@@ -814,6 +816,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                   </div>
                 )
               })}
+              <div className="w-4 shrink-0 border-l bg-muted/20" style={{ height: totalHeight }} aria-hidden />
             </div>
           </div>
         )
