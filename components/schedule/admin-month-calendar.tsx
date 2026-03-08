@@ -301,9 +301,14 @@ export function AdminMonthCalendar({
   }, [getMinutesFromY, startDrag, weeks, startTransition])
 
   useEffect(() => {
-    if (view === "week" && timelineScrollRef.current) {
-      timelineScrollRef.current.scrollTop = 0
+    if (view !== "week") return
+    const el = timelineScrollRef.current
+    if (!el) return
+    const scrollToStart = () => {
+      el.scrollTop = 0
     }
+    scrollToStart()
+    requestAnimationFrame(scrollToStart)
   }, [view, weekIdx])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
@@ -787,7 +792,7 @@ export function AdminMonthCalendar({
                 {/* Hour labels */}
                 <div className="relative border-r" style={{ height: totalHeight }}>
                   {hours.map((h) => (
-                    <div key={h} className="absolute right-2 -translate-y-1/2 text-[10px] text-muted-foreground/60 tabular-nums select-none" style={{ top: PAD + (h - startHour) * HOUR_HEIGHT }}>
+                    <div key={h} className="absolute right-2 text-[10px] text-muted-foreground/60 tabular-nums select-none leading-none" style={{ top: PAD + (h - startHour) * HOUR_HEIGHT }}>
                       {String(h).padStart(2, "0")}:00
                     </div>
                   ))}
