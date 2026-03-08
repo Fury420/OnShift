@@ -2,7 +2,7 @@
 
 import { db } from "@/db"
 import { shifts, openShiftClaims } from "@/db/schema"
-import { eq, inArray, and, lt, gt, ne, isNotNull } from "drizzle-orm"
+import { eq, inArray, and, lt, gt, ne, isNotNull, isNull } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
@@ -279,7 +279,7 @@ export async function publishDraftShifts(ids: string[]) {
   await db
     .update(shifts)
     .set({ status: "open", updatedAt: new Date() })
-    .where(and(base, eq(shifts.userId, null)))
+    .where(and(base, isNull(shifts.userId)))
 
   revalidateSchedule()
 }
