@@ -154,7 +154,7 @@ export function AdminScheduleTable({
                       {s.note ?? "—"}
                     </TableCell>
                     <TableCell>
-                      {s.status === "published" ? (
+                      {s.status === "draft" ? (
                         <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
                           Publikovaná
                         </Badge>
@@ -173,12 +173,14 @@ export function AdminScheduleTable({
                           <DropdownMenuItem onClick={() => openEdit(s)}>
                             Upraviť
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleToggle(s.id, s.status)}
-                            disabled={isPending}
-                          >
-                            {s.status === "draft" ? "Publikovať" : "Zrušiť publikovanie"}
-                          </DropdownMenuItem>
+                          {s.status === "draft" && (
+                            <DropdownMenuItem
+                              onClick={() => handleToggle(s.id, s.status)}
+                              disabled={isPending}
+                            >
+                              Publikovať
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive"

@@ -17,7 +17,7 @@ import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift
 import { OfferShiftDialog } from "./offer-shift-dialog"
 import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftRequest, rejectShiftRequest, approveShiftClaim, rejectShiftClaim, updateShift } from "@/app/actions/schedule"
 import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
-import { Check, X, Pencil, Eye, EyeOff, Trash2, CalendarX, CalendarPlus } from "lucide-react"
+import { Check, X, Pencil, Trash2, CalendarX, CalendarPlus } from "lucide-react"
 import { toast } from "sonner"
 
 export interface AdminCalendarShift {
@@ -591,9 +591,9 @@ export function AdminMonthCalendar({
                           {!(shift.isRecurring && shift.status === "published") && (
                             <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
                           )}
-                          {shift.status !== "open" && (
-                            <DropdownMenuItem onClick={() => handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId)} disabled={isPending}>
-                              {shift.status === "draft" ? "Publikovať" : "Zrušiť publikovanie"}
+                          {shift.status === "draft" && (
+                            <DropdownMenuItem onClick={() => handleToggle(shift.id, "draft", shift.isRule, shift.ruleId)} disabled={isPending}>
+                              Publikovať
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
@@ -746,11 +746,11 @@ export function AdminMonthCalendar({
                       {!(shift.isRecurring && shift.status === "published") && (
                         <DropdownMenuItem onClick={() => openEditRule(shift)}>{shift.isRecurring ? "Upraviť pravidlo" : "Upraviť"}</DropdownMenuItem>
                       )}
-                      {shift.status !== "open" && (
-                        <DropdownMenuItem onClick={() => handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId)} disabled={isPending}>
-                          {shift.status === "draft" ? "Publikovať" : "Zrušiť publikovanie"}
-                        </DropdownMenuItem>
-                      )}
+                          {shift.status === "draft" && (
+                            <DropdownMenuItem onClick={() => handleToggle(shift.id, "draft", shift.isRule, shift.ruleId)} disabled={isPending}>
+                              Publikovať
+                            </DropdownMenuItem>
+                          )}
                       <DropdownMenuSeparator />
                       {shift.isRecurring && (
                         <DropdownMenuItem onClick={() => handleSkipInstance(shift.ruleId!, shift.date)} disabled={isPending} className="text-destructive">Odstrániť túto zmenu</DropdownMenuItem>
@@ -953,17 +953,6 @@ export function AdminMonthCalendar({
                                       onClick={(e) => { e.stopPropagation(); openEditRule(shift) }}
                                     >
                                       <Pencil className="size-3" />
-                                    </button>
-                                  )}
-                                  {shift.status !== "open" && (
-                                    <button
-                                      data-action-btn
-                                      title={shift.status === "draft" ? "Publikovať" : "Zrušiť publikovanie"}
-                                      className="rounded p-0.5 hover:bg-white/30 transition-colors"
-                                      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                                      onClick={(e) => { e.stopPropagation(); handleToggle(shift.id, shift.status as "draft" | "published", shift.isRule, shift.ruleId) }}
-                                    >
-                                      {shift.status === "draft" ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
                                     </button>
                                   )}
                                   {shift.isRecurring && (
