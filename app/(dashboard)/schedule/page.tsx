@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shifts, user, leaves, businessHours, shiftRules, shiftExceptions } from "@/db/schema"
+import { shifts, user, leaves, businessHours, openShiftClaims, shiftRules, shiftExceptions } from "@/db/schema"
 import { eq, and, gte, lte, asc, or } from "drizzle-orm"
 import { getSession } from "@/lib/session"
 import { getOrganizationId } from "@/lib/auth-guard"
@@ -29,7 +29,7 @@ export default async function SchedulePage({
   const endDate = toDateStr(weeks[weeks.length - 1][6])
   const todayStr = toDateStr(new Date())
 
-  const [monthShifts, openMonthShifts, requestedShifts, employees, approvedLeaves, orgBusinessHours, rules, exceptions] = await Promise.all([
+  const [monthShifts, openMonthShifts, requestedShifts, pendingClaims, employees, approvedLeaves, orgBusinessHours, rules, exceptions] = await Promise.all([
     db
       .select({
         id: shifts.id,
@@ -68,6 +68,16 @@ export default async function SchedulePage({
       .from(shifts)
       .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "requested"), eq(shifts.userId, session.user.id), gte(shifts.date, startDate), lte(shifts.date, endDate)))
       .orderBy(asc(shifts.startTime)),
+
+    db
+      .select({
+        id: openShiftClaims.id,
+        shiftId: openShiftClaims.shiftId,
+        claimedByUserId: openShiftClaims.claimedByUserId,
+        status: openShiftClaims.status,
+      })
+      .from(openShiftClaims)
+      .where(eq(openShiftClaims.organizationId, orgId)),
 
     db
       .select({ id: user.id, name: user.name, color: user.color })

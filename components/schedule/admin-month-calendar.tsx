@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ShiftDialog, type ShiftRuleForEdit, type EmployeeOption } from "./shift-dialog"
 import { OfferShiftDialog } from "./offer-shift-dialog"
-import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftRequest, rejectShiftRequest, updateShift } from "@/app/actions/schedule"
+import { deleteShift, toggleShiftStatus, publishDraftShifts, approveShiftRequest, rejectShiftRequest, approveShiftClaim, rejectShiftClaim, updateShift } from "@/app/actions/schedule"
 import { deleteShiftRule, skipRuleInstance, toggleShiftRuleStatus, modifyRuleInstance } from "@/app/actions/shift-rules"
 import { Check, X, Pencil, Eye, EyeOff, Trash2, CalendarX, CalendarPlus } from "lucide-react"
 import { toast } from "sonner"
@@ -475,28 +475,6 @@ export function AdminMonthCalendar({
       try {
         await rejectShiftRequest(shiftId)
         toast.success("Požiadavka zamietnutá")
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Chyba")
-      }
-    })
-  }
-
-  function handleApprove(claimId: string) {
-    startTransition(async () => {
-      try {
-        await approveShiftClaim(claimId)
-        toast.success("Zmena priradená")
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Chyba")
-      }
-    })
-  }
-
-  function handleReject(claimId: string) {
-    startTransition(async () => {
-      try {
-        await rejectShiftClaim(claimId)
-        toast.success("Prihlásenie zamietnuté")
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Chyba")
       }

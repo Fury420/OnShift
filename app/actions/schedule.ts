@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/db"
-import { shifts } from "@/db/schema"
+import { shifts, openShiftClaims } from "@/db/schema"
 import { eq, inArray, and, lt, gt, ne } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
@@ -243,6 +243,32 @@ export async function claimRuleShift(ruleId: string, date: string, startTime: st
     .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "published"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
   if (claimedShifts.length >= mc) throw new Error("Zmena je už plne obsadená")
 
+  // Find or create concrete open shift for this rule+date
+  let [openShift] = await db
+    .select({ id: shifts.id })
+    .from(shifts)
+    .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
+    .limit(1)
+
+  if (!openShift) {
+    const [created] = await db.insert(shifts).values({
+      organizationId: orgId,
+      userId: null,
+      date,
+      startTime,
+      endTime,
+      status: "open",
+    }).returning({ id: shifts.id })
+    openShift = created
+  }
+
+  await db.insert(openShiftClaims).values({
+    organizationId: orgId,
+    shiftId: openShift.id,
+    claimedByUserId: userId,
+    status: "approved",
+  })
+
   await db.insert(shifts).values({
     organizationId: orgId,
     userId,
@@ -254,6 +280,44 @@ export async function claimRuleShift(ruleId: string, date: string, startTime: st
 
   revalidatePath("/schedule")
   revalidatePath("/admin/schedule")
+}
+
+export async function approveShiftClaim(claimId: string) {
+  await requireAdmin()
+  const orgId = await getOrganizationId()
+
+  const [claim] = await db
+    .select({ id: openShiftClaims.id, shiftId: openShiftClaims.shiftId, claimedByUserId: openShiftClaims.claimedByUserId })
+    .from(openShiftClaims)
+    .where(and(eq(openShiftClaims.id, claimId), eq(openShiftClaims.organizationId, orgId)))
+    .limit(1)
+  if (!claim) throw new Error("Prihlásenie nenájdené")
+
+  await db
+    .update(shifts)
+    .set({ userId: claim.claimedByUserId, status: "published", updatedAt: new Date() })
+    .where(and(eq(shifts.id, claim.shiftId), eq(shifts.organizationId, orgId)))
+
+  await db
+    .update(openShiftClaims)
+    .set({ status: "approved", updatedAt: new Date() })
+    .where(eq(openShiftClaims.id, claimId))
+
+  revalidatePath("/admin/schedule")
+  revalidatePath("/schedule")
+}
+
+export async function rejectShiftClaim(claimId: string) {
+  await requireAdmin()
+  const orgId = await getOrganizationId()
+
+  await db
+    .update(openShiftClaims)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(and(eq(openShiftClaims.id, claimId), eq(openShiftClaims.organizationId, orgId)))
+
+  revalidatePath("/admin/schedule")
+  revalidatePath("/schedule")
 }
 
 export async function deleteShift(id: string) {
