@@ -163,7 +163,7 @@ export default async function AttendancePage({
         const dateLabel = d.toLocaleDateString("sk-SK", { weekday: "short", day: "numeric", month: "numeric" })
         const start = typeof nextShift.startTime === "string" ? nextShift.startTime.slice(0, 5) : "–"
         const end = typeof nextShift.endTime === "string" ? nextShift.endTime.slice(0, 5) : "–"
-        return { dateLabel, start, end }
+        return { date: nextShift.date, dateLabel, start, end }
       })()
     : null
 
