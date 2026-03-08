@@ -12,7 +12,7 @@ import { getMonthGrid, toDateStr, formatMonthLabel, shortTime } from "@/lib/week
 export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; week?: string }>
 }) {
   const session = await getSession()
   if (!session) redirect("/login")
@@ -21,7 +21,8 @@ export default async function SchedulePage({
   const isAdmin = sessionUser.role === "admin"
   const orgId = await getOrganizationId()
 
-  const { month } = await searchParams
+  const { month, week } = await searchParams
+  const initialWeek = week === "last" ? "last" : week === "first" ? "first" : undefined
   const { year, monthNum, weeks } = getMonthGrid(month)
 
   const startDate = toDateStr(weeks[0][0])
@@ -173,6 +174,7 @@ export default async function SchedulePage({
       monthLabel={formatMonthLabel(year, monthNum)}
       prevMonth={prevMonth}
       nextMonth={nextMonth}
+      initialWeek={initialWeek}
       allEmployees={employees.map((e) => ({ id: e.id, name: e.name }))}
       businessHours={bhMap}
       currentUserId={session.user.id}

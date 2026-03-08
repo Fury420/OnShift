@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Plus, Check, Umbrella, ArrowLeftRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Check, Palmtree, ArrowLeftRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
@@ -57,6 +57,7 @@ interface MonthCalendarProps {
   monthLabel: string
   prevMonth: string
   nextMonth: string
+  initialWeek?: "first" | "last"
   allEmployees: ColleagueOption[]
   businessHours?: Map<string, BusinessHoursEntry>
   currentUserId?: string
@@ -109,10 +110,12 @@ interface DragPreview {
   bottomMinutes: number
 }
 
-export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmployees, businessHours, currentUserId, canCreateShifts }: MonthCalendarProps) {
+export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initialWeek, allEmployees, businessHours, currentUserId, canCreateShifts }: MonthCalendarProps) {
   const router = useRouter()
   const [view, setView] = useState<"month" | "week">("week")
   const [weekIdx, setWeekIdx] = useState(() => {
+    if (initialWeek === "last") return Math.max(0, weeks.length - 1)
+    if (initialWeek === "first") return 0
     const today = new Date().toISOString().slice(0, 10)
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
     return idx >= 0 ? idx : weeks.findIndex((w) => w.some((d) => d.isCurrentMonth)) ?? 0
@@ -189,6 +192,11 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   }, [getMinutesFromY, canCreateShifts])
 
   useEffect(() => {
+    if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
+    else if (initialWeek === "first") setWeekIdx(0)
+  }, [initialWeek, weeks.length])
+
+  useEffect(() => {
     if (view !== "week") return
     const el = timelineScrollRef.current
     if (!el) return
@@ -249,12 +257,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
   function handlePrevWeek() {
     if (weekIdx > 0) setWeekIdx(weekIdx - 1)
-    else router.push(`/schedule?month=${prevMonth}`)
+    else router.push(`/schedule?month=${prevMonth}&week=last`)
   }
 
   function handleNextWeek() {
     if (weekIdx < weeks.length - 1) setWeekIdx(weekIdx + 1)
-    else router.push(`/schedule?month=${nextMonth}`)
+    else router.push(`/schedule?month=${nextMonth}&week=first`)
   }
 
   function goToToday() {
@@ -310,7 +318,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         <div className="flex items-center gap-2">
           {!canCreateShifts && (
             <Button size="sm" variant="outline" onClick={() => setLeaveDialogOpen(true)}>
-              <Umbrella className="size-4" />
+              <Palmtree className="size-4" />
               Žiadosť o dovolenku
             </Button>
           )}

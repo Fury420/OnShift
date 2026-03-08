@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTransition } from "react"
-import { Clock, Calendar, Users, CalendarCog, BarChart3, Banknote, Umbrella, ClipboardList, Building2, ChevronsUpDown, Check, Settings2 } from "lucide-react"
+import { Clock, Calendar, Users, CalendarCog, BarChart3, Banknote, ClipboardList, Building2, ChevronsUpDown, Check, Settings2 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,

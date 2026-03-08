@@ -77,7 +77,7 @@ export default async function AdminReportsPage({
         lt(attendance.clockIn, end),
       ),
     )
-    .orderBy(asc(user.name), asc(attendance.clockIn))
+    .orderBy(asc(attendance.clockIn), asc(user.name))
 
   type FlatRow = { id: string; name: string; color: string | null; date: string; clockIn: string; clockOut: string; clockInISO: string; clockOutISO: string; minutes: number; note: string | null }
   const allRows: FlatRow[] = []

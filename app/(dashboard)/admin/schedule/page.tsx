@@ -10,12 +10,13 @@ import { getMonthGrid, toDateStr, formatMonthLabel, shortTime } from "@/lib/week
 export default async function AdminSchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; week?: string }>
 }) {
   const session = await requireAdmin()
   const orgId = (session.user as { organizationId?: string | null }).organizationId!
 
-  const { month } = await searchParams
+  const { month, week } = await searchParams
+  const initialWeek = week === "last" ? "last" : week === "first" ? "first" : undefined
   const { year, monthNum, weeks } = getMonthGrid(month)
 
   const startDate = toDateStr(weeks[0][0])
@@ -139,6 +140,7 @@ export default async function AdminSchedulePage({
       monthLabel={formatMonthLabel(year, monthNum)}
       prevMonth={prevMonth}
       nextMonth={nextMonth}
+      initialWeek={initialWeek}
       businessHours={bhMap}
     />
   )

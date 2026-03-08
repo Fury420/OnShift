@@ -6,7 +6,7 @@ import { db } from "@/db"
 import { organizations, user, attendance, shifts, leaves } from "@/db/schema"
 import { requireSuperAdmin } from "@/lib/auth-guard"
 import { eq, count, and, isNull } from "drizzle-orm"
-import { ArrowLeft, Users, Clock, CalendarCheck, Umbrella } from "lucide-react"
+import { ArrowLeft, Users, Clock, CalendarCheck, Palmtree } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
@@ -59,7 +59,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ orgI
     { label: "Zamestnanci", value: activeEmployees.length, icon: Users },
     { label: "Aktívne clock-in", value: attendanceCount, icon: Clock },
     { label: "Zmeny celkom", value: shiftsCount, icon: CalendarCheck },
-    { label: "Dovolenky", value: leavesCount, icon: Umbrella },
+    { label: "Dovolenky", value: leavesCount, icon: Palmtree },
   ]
 
   return (

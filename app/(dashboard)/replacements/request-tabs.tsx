@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Umbrella, ArrowLeftRight, Plus } from "lucide-react"
+import { Palmtree, ArrowLeftRight, Plus } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -60,7 +60,7 @@ export function RequestTabs({
       <Tabs defaultValue="dovolenky" className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2 lg:w-auto lg:inline-flex">
           <TabsTrigger value="dovolenky" className="gap-1.5">
-            <Umbrella className="size-4" />
+            <Palmtree className="size-4" />
             Dovolenky
           </TabsTrigger>
           <TabsTrigger value="vymeny" className="gap-1.5">
@@ -75,12 +75,10 @@ export function RequestTabs({
               <CardTitle className="text-base">
                 {isAdmin ? "Žiadosti o voľno na schválenie" : "Moje žiadosti o voľno"}
               </CardTitle>
-              {isAdmin && (
-                <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-                  <Plus className="size-4" />
-                  Nová žiadosť
-                </Button>
-              )}
+              <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
+                <Plus className="size-4" />
+                Nová žiadosť
+              </Button>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               {isAdmin ? (
@@ -92,9 +90,8 @@ export function RequestTabs({
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground -mt-2 mb-2">
-                    Žiadosť o dovolenku podajte v{" "}
-                    <Link href="/schedule" className="text-primary underline underline-offset-2">Kalendári zmien</Link>
-                    {" "}(tlačidlo „Žiadosť o dovolenku“).
+                    Žiadosť o dovolenku môžete podať tu (tlačidlo „Nová žiadosť“ vyššie) alebo v{" "}
+                    <Link href="/schedule" className="text-primary underline underline-offset-2">Kalendári zmien</Link>.
                   </p>
                   {leavesToApproveAsReplacement.length > 0 && (
                     <div className="flex flex-col gap-2">

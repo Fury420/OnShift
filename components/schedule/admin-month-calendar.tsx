@@ -62,6 +62,7 @@ interface AdminMonthCalendarProps {
   monthLabel: string
   prevMonth: string
   nextMonth: string
+  initialWeek?: "first" | "last"
   businessHours?: Map<string, BusinessHoursEntry>
 }
 
@@ -125,11 +126,14 @@ export function AdminMonthCalendar({
   monthLabel,
   prevMonth,
   nextMonth,
+  initialWeek,
   businessHours,
 }: AdminMonthCalendarProps) {
   const router = useRouter()
   const [view, setView] = useState<"month" | "week">("week")
   const [weekIdx, setWeekIdx] = useState(() => {
+    if (initialWeek === "last") return Math.max(0, weeks.length - 1)
+    if (initialWeek === "first") return 0
     const today = new Date().toISOString().slice(0, 10)
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
     return idx >= 0 ? idx : 0
@@ -301,6 +305,11 @@ export function AdminMonthCalendar({
   }, [getMinutesFromY, startDrag, weeks, startTransition])
 
   useEffect(() => {
+    if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
+    else if (initialWeek === "first") setWeekIdx(0)
+  }, [initialWeek, weeks.length])
+
+  useEffect(() => {
     if (view !== "week") return
     const el = timelineScrollRef.current
     if (!el) return
@@ -325,11 +334,11 @@ export function AdminMonthCalendar({
 
   function handlePrevWeek() {
     if (weekIdx > 0) setWeekIdx(weekIdx - 1)
-    else router.push(`/admin/schedule?month=${prevMonth}`)
+    else router.push(`/admin/schedule?month=${prevMonth}&week=last`)
   }
   function handleNextWeek() {
     if (weekIdx < weeks.length - 1) setWeekIdx(weekIdx + 1)
-    else router.push(`/admin/schedule?month=${nextMonth}`)
+    else router.push(`/admin/schedule?month=${nextMonth}&week=first`)
   }
   function goToToday() {
     const today = new Date().toISOString().slice(0, 10)
