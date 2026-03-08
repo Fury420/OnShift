@@ -486,47 +486,69 @@ export function AdminMonthCalendar({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ))}
-                    {day.openShifts.map((os) => (
-                      <div key={os.id} className="rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1.5 bg-muted/10">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm font-medium text-muted-foreground">
-                              Voľná zmena
-                              {os.maxClaims > 1 && <span className="text-xs ml-1">({os.claims.length}/{os.maxClaims})</span>}
+                    {day.openShifts.map((os) => {
+                      const isFull = os.claims.length >= os.maxClaims
+                      if (isFull) {
+                        return os.claims.map((claim) => (
+                          <div
+                            key={`fc-${claim.claimId}`}
+                            className="rounded-lg px-3 py-2 hover:opacity-80 transition-opacity"
+                            style={{
+                              backgroundColor: claim.color + "28",
+                              borderLeft: `3px solid ${claim.color}`,
+                            }}
+                          >
+                            <div className="text-sm font-semibold" style={{ color: claim.color }}>
+                              {claim.userName.split(" ")[0]}
                             </div>
-                            <div className="text-xs text-muted-foreground/70">{os.startTime}–{os.endTime}</div>
+                            <div className="text-xs opacity-75" style={{ color: claim.color }}>
+                              {os.startTime}–{os.endTime}
+                            </div>
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button className="p-1 rounded hover:bg-muted">
-                                <Plus className="size-3.5 text-muted-foreground" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditOpenShift(os)}>Upraviť</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(os.id))} disabled={isPending}>Odstrániť</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        {os.claims.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-0.5">
-                            {os.claims.map((claim) => (
-                              <span key={claim.claimId} className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ backgroundColor: claim.color + "20", color: claim.color }}>
-                                {claim.userName.split(" ")[0]}
-                                <button
-                                  onClick={() => startTransition(() => adminRemoveClaim(claim.claimId))}
-                                  className="hover:opacity-60"
-                                  title="Odobrať"
-                                >
-                                  ×
+                        ))
+                      }
+                      return (
+                        <div key={os.id} className="rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1.5 bg-muted/10">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-muted-foreground">
+                                Voľná zmena
+                                {os.maxClaims > 1 && <span className="text-xs ml-1">({os.claims.length}/{os.maxClaims})</span>}
+                              </div>
+                              <div className="text-xs text-muted-foreground/70">{os.startTime}–{os.endTime}</div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1 rounded hover:bg-muted">
+                                  <Plus className="size-3.5 text-muted-foreground" />
                                 </button>
-                              </span>
-                            ))}
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditOpenShift(os)}>Upraviť</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(os.id))} disabled={isPending}>Odstrániť</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          {os.claims.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {os.claims.map((claim) => (
+                                <span key={claim.claimId} className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ backgroundColor: claim.color + "20", color: claim.color }}>
+                                  {claim.userName.split(" ")[0]}
+                                  <button
+                                    onClick={() => startTransition(() => adminRemoveClaim(claim.claimId))}
+                                    className="hover:opacity-60"
+                                    title="Odobrať"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -553,35 +575,54 @@ export function AdminMonthCalendar({
                 const bh = businessHours?.get(dow)
                 const hasOpenHours = bh && !bh.isClosed && bh.openTime && bh.closeTime
 
-                const openShiftBlocks = day.openShifts.map((os) => (
-                  <div key={os.id} className="rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background">
-                    <div className="flex items-center justify-between gap-0.5">
-                      <span className="truncate text-muted-foreground font-medium text-[10px]">
-                        Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}
-                      </span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="p-0.5 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Plus className="size-2.5 text-muted-foreground" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditOpenShift(os)}>Upraviť</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(os.id))} disabled={isPending}>Odstrániť</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <div className="opacity-60 text-[9px]">{os.startTime}–{os.endTime}</div>
-                    {os.claims.length > 0 && (
-                      <div className="flex flex-wrap gap-0.5 mt-0.5">
-                        {os.claims.map((claim) => (
-                          <span key={claim.claimId} className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
-                        ))}
+                const openShiftBlocks = day.openShifts.map((os) => {
+                  const isFull = os.claims.length >= os.maxClaims
+                  if (isFull) {
+                    return os.claims.map((claim) => (
+                      <div
+                        key={`fc-${claim.claimId}`}
+                        className="rounded px-1 py-0.5 text-xs leading-tight hover:opacity-80 transition-opacity"
+                        style={{
+                          backgroundColor: claim.color + "28",
+                          borderLeft: `2px solid ${claim.color}`,
+                          color: claim.color,
+                        }}
+                      >
+                        <div className="truncate font-medium">{claim.userName.split(" ")[0]}</div>
+                        <div className="opacity-80">{os.startTime}–{os.endTime}</div>
                       </div>
-                    )}
-                  </div>
-                ))
+                    ))
+                  }
+                  return (
+                    <div key={os.id} className="rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background">
+                      <div className="flex items-center justify-between gap-0.5">
+                        <span className="truncate text-muted-foreground font-medium text-[10px]">
+                          Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-0.5 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Plus className="size-2.5 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditOpenShift(os)}>Upraviť</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => startTransition(() => deleteShift(os.id))} disabled={isPending}>Odstrániť</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <div className="opacity-60 text-[9px]">{os.startTime}–{os.endTime}</div>
+                      {os.claims.length > 0 && (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {os.claims.map((claim) => (
+                            <span key={claim.claimId} className="text-[9px] px-1 py-0.5 rounded" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
 
                 const shiftBlocks = day.shifts.map((shift) => (
                   <DropdownMenu key={shift.id}>
@@ -728,11 +769,27 @@ export function AdminMonthCalendar({
                 {currentWeek.map((day) => {
                   type TaggedShift = AdminCalendarShift & { _type: "shift" }
                   type TaggedOpen = AdminOpenShift & { _type: "open" }
-                  type TaggedItem = TaggedShift | TaggedOpen
+                  type FilledClaim = { _type: "filled"; claimId: string; userId: string; userName: string; color: string; startTime: string; endTime: string; openShift: AdminOpenShift }
+                  type TaggedItem = TaggedShift | TaggedOpen | FilledClaim
+
+                  const partialOpenShifts = day.openShifts.filter(os => os.claims.length < os.maxClaims)
+                  const filledClaims: FilledClaim[] = day.openShifts
+                    .filter(os => os.claims.length >= os.maxClaims)
+                    .flatMap(os => os.claims.map(c => ({
+                      _type: "filled" as const,
+                      claimId: c.claimId,
+                      userId: c.userId,
+                      userName: c.userName,
+                      color: c.color,
+                      startTime: os.startTime,
+                      endTime: os.endTime,
+                      openShift: os,
+                    })))
 
                   const allItems: TaggedItem[] = [
                     ...day.shifts.map(s => ({ ...s, _type: "shift" as const })),
-                    ...day.openShifts.map(s => ({ ...s, _type: "open" as const })),
+                    ...filledClaims,
+                    ...partialOpenShifts.map(s => ({ ...s, _type: "open" as const })),
                   ]
                   const lanes = assignLanes(allItems)
 
@@ -861,6 +918,42 @@ export function AdminMonthCalendar({
                                 {os.claims.map((claim) => (
                                   <span key={claim.claimId} className="text-[10px] px-1 py-0.5 rounded mt-0.5 inline-block" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
                                 ))}
+                              </div>
+                            )
+                          }
+
+                          if (item._type === "filled") {
+                            const fc = item
+                            return (
+                              <div
+                                key={`fc-${fc.claimId}`}
+                                className="absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left overflow-hidden pointer-events-auto group/block"
+                                style={{
+                                  top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)`,
+                                  backgroundColor: fc.color + "30",
+                                  borderLeft: `3px solid ${fc.color}`,
+                                  color: fc.color,
+                                }}
+                              >
+                                {/* Hover action buttons */}
+                                <div className="absolute top-0.5 right-0.5 z-20 hidden group-hover/block:flex gap-0.5 rounded-sm p-0.5" style={{ backgroundColor: fc.color + "40" }}>
+                                  <button
+                                    title="Upraviť zmenu"
+                                    className="rounded p-0.5 hover:bg-white/30 transition-colors"
+                                    onClick={() => openEditOpenShift(fc.openShift)}
+                                  >
+                                    <Pencil className="size-3" />
+                                  </button>
+                                  <button
+                                    title="Odobrať prihlásenie"
+                                    className="rounded p-0.5 hover:bg-red-400/40 transition-colors"
+                                    onClick={() => startTransition(() => adminRemoveClaim(fc.claimId))}
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </button>
+                                </div>
+                                <div className="font-semibold truncate leading-tight pr-4">{fc.userName}</div>
+                                <div className="opacity-80 leading-tight text-[10px]">{fc.startTime}–{fc.endTime}</div>
                               </div>
                             )
                           }

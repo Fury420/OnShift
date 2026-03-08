@@ -394,6 +394,22 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                       )
                     })}
                     {day.openShifts.map((os) => {
+                      const isFull = os.acceptedCount >= os.maxClaims
+                      if (isFull) {
+                        return os.claimedByUsers.map((u) => (
+                          <div
+                            key={`fc-${u.claimId}`}
+                            className="rounded-lg px-3 py-2"
+                            style={{
+                              backgroundColor: u.color + "28",
+                              borderLeft: `3px solid ${u.color}`,
+                            }}
+                          >
+                            <div className="text-sm font-semibold" style={{ color: u.color }}>{u.userName.split(" ")[0]}</div>
+                            <div className="text-sm opacity-75" style={{ color: u.color }}>{os.startTime}–{os.endTime}</div>
+                          </div>
+                        ))
+                      }
                       const canClaim = os.iMayClaim && !isPast
                       const isClaimed = !!os.myClaimId
                       return (
@@ -468,6 +484,23 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                       )
                     })}
                     {day.openShifts.map((os) => {
+                      const isFull = os.acceptedCount >= os.maxClaims
+                      if (isFull) {
+                        return os.claimedByUsers.map((u) => (
+                          <div
+                            key={`fc-${u.claimId}`}
+                            className="rounded px-1.5 py-0.5 text-xs leading-tight"
+                            style={{
+                              backgroundColor: u.color + "28",
+                              borderLeft: `3px solid ${u.color}`,
+                              color: u.color,
+                            }}
+                          >
+                            <div className="truncate font-medium">{u.userName.split(" ")[0]}</div>
+                            <div className="opacity-80">{os.startTime}–{os.endTime}</div>
+                          </div>
+                        ))
+                      }
                       const canClaimGrid = os.iMayClaim && !isPast
                       return (
                         <div key={os.id}
@@ -579,11 +612,27 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
                 type TaggedShift = CalendarShift & { _type: "shift" }
                 type TaggedOpen = OpenShift & { _type: "open" }
-                type TaggedItem = TaggedShift | TaggedOpen
+                type FilledClaim = { _type: "filled"; claimId: string; userId: string; userName: string; color: string; startTime: string; endTime: string; openShift: OpenShift }
+                type TaggedItem = TaggedShift | TaggedOpen | FilledClaim
+
+                const partialOpenShifts = day.openShifts.filter(os => os.acceptedCount < os.maxClaims)
+                const filledClaims: FilledClaim[] = day.openShifts
+                  .filter(os => os.acceptedCount >= os.maxClaims)
+                  .flatMap(os => os.claimedByUsers.map(u => ({
+                    _type: "filled" as const,
+                    claimId: u.claimId,
+                    userId: u.userId,
+                    userName: u.userName,
+                    color: u.color,
+                    startTime: os.startTime,
+                    endTime: os.endTime,
+                    openShift: os,
+                  })))
 
                 const allItems: TaggedItem[] = [
                   ...day.shifts.map(s => ({ ...s, _type: "shift" as const })),
-                  ...day.openShifts.map(s => ({ ...s, _type: "open" as const })),
+                  ...filledClaims,
+                  ...partialOpenShifts.map(s => ({ ...s, _type: "open" as const })),
                 ]
                 const lanes = assignLanes(allItems)
 
@@ -671,6 +720,38 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                     <span key={u.claimId} className="text-xs px-1 rounded-full" style={{ backgroundColor: u.color + "20", color: u.color }}>{u.userName.split(" ")[0]}</span>
                                   ))}
                                 </div>
+                              )}
+                            </div>
+                          )
+                        }
+
+                        if (item._type === "filled") {
+                          const fc = item
+                          const isMe = fc.userId === currentUserId
+                          return (
+                            <div
+                              key={`fc-${fc.claimId}`}
+                              className={cn(
+                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm overflow-hidden pointer-events-auto",
+                                isMe && "cursor-pointer hover:opacity-80 transition-opacity",
+                              )}
+                              style={{
+                                ...posStyle,
+                                backgroundColor: fc.color + "30",
+                                borderLeft: `3px solid ${fc.color}`,
+                                color: fc.color,
+                              }}
+                            >
+                              <div className="font-semibold truncate leading-tight">{fc.userName}</div>
+                              <div className="opacity-80 leading-tight text-xs">{fc.startTime}–{fc.endTime}</div>
+                              {isMe && (
+                                <button
+                                  className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5 hover:text-destructive transition-colors pointer-events-auto"
+                                  onClick={() => handleUnclaim(fc.openShift.id)}
+                                  disabled={isPending}
+                                >
+                                  <Check className="size-2.5" /> Odhlásiť sa
+                                </button>
                               )}
                             </div>
                           )
