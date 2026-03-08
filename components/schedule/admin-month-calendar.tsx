@@ -620,7 +620,7 @@ export function AdminMonthCalendar({
                           color: claim.color,
                         }}
                       >
-                        <div className="truncate font-medium">{claim.userName.split(" ")[0]}</div>
+                        <div className="truncate font-semibold">{claim.userName.split(" ")[0]}</div>
                         <div className="opacity-80">{os.startTime}–{os.endTime}</div>
                       </div>
                     ))
@@ -670,7 +670,7 @@ export function AdminMonthCalendar({
                           color: shift.color,
                         }}
                       >
-                        <div className="truncate font-medium">{shift.userName.split(" ")[0]}</div>
+                        <div className="truncate font-semibold">{shift.userName.split(" ")[0]}</div>
                         <div className="opacity-80">{shift.startTime}–{shift.endTime}</div>
                       </button>
                     </DropdownMenuTrigger>
@@ -868,7 +868,7 @@ export function AdminMonthCalendar({
                               <div
                                 key={shift.id}
                                 className={cn(
-                                  "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left overflow-hidden cursor-grab group/block pointer-events-auto",
+                                  "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm text-left overflow-hidden cursor-grab group/block pointer-events-auto",
                                   shift.status === "draft" && "opacity-60",
                                 )}
                                 style={{
@@ -914,7 +914,7 @@ export function AdminMonthCalendar({
                                 </div>
 
                                 <div className="font-semibold truncate leading-tight pr-4">{shift.userName}</div>
-                                <div className="opacity-80 leading-tight text-[10px]">
+                                <div className="opacity-80 leading-tight text-xs">
                                   {shift.startTime}–{shift.endTime}
                                   {shift.status === "draft" && " · koncept"}
                                 </div>
@@ -935,7 +935,7 @@ export function AdminMonthCalendar({
                             return (
                               <div
                                 key={os.id}
-                                className={cn("absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden pointer-events-auto group/openblock", os.status === "draft" && "opacity-70")}
+                                className={cn("absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-1 text-sm bg-muted/10 overflow-hidden pointer-events-auto group/openblock", os.status === "draft" && "opacity-70")}
                                 style={{ top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)` }}
                               >
                                 {/* Hover action buttons */}
@@ -958,9 +958,9 @@ export function AdminMonthCalendar({
                                 <div className="font-medium text-muted-foreground leading-tight">
                                   Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                                 </div>
-                                <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
+                                <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (
-                                  <span key={claim.claimId} className="text-[10px] px-1 py-0.5 rounded mt-0.5 inline-block" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
+                                  <span key={claim.claimId} className="text-xs px-1 py-0.5 rounded mt-0.5 inline-block" style={{ backgroundColor: claim.color + "20", color: claim.color }}>{claim.userName.split(" ")[0]}</span>
                                 ))}
                               </div>
                             )
@@ -971,7 +971,7 @@ export function AdminMonthCalendar({
                             return (
                               <div
                                 key={`fc-${fc.claimId}`}
-                                className="absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-xs text-left overflow-hidden pointer-events-auto group/block"
+                                className="absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm text-left overflow-hidden pointer-events-auto group/block"
                                 style={{
                                   top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)`,
                                   backgroundColor: fc.color + "30",
@@ -997,7 +997,7 @@ export function AdminMonthCalendar({
                                   </button>
                                 </div>
                                 <div className="font-semibold truncate leading-tight pr-4">{fc.userName}</div>
-                                <div className="opacity-80 leading-tight text-[10px]">{fc.startTime}–{fc.endTime}</div>
+                                <div className="opacity-80 leading-tight text-xs">{fc.startTime}–{fc.endTime}</div>
                               </div>
                             )
                           }

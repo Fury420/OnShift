@@ -493,7 +493,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                               <ArrowLeftRight className="size-2.5" style={{ color: shift.color }} />
                             </button>
                           )}
-                          <div className="truncate pr-4">{shift.userName.split(" ")[0]}</div>
+                          <div className="truncate font-semibold pr-4">{shift.userName.split(" ")[0]}</div>
                           <div className="opacity-80">{shift.startTime}–{shift.endTime}</div>
                         </div>
                       )
@@ -524,7 +524,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                                   <ArrowLeftRight className="size-2.5" style={{ color: u.color }} />
                                 </button>
                               )}
-                              <div className="truncate font-medium pr-4">{u.userName.split(" ")[0]}</div>
+                              <div className="truncate font-semibold pr-4">{u.userName.split(" ")[0]}</div>
                               <div className="opacity-80">{os.startTime}–{os.endTime}</div>
                             </div>
                           )
