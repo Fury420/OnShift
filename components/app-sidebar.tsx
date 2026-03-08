@@ -44,9 +44,12 @@ interface AppSidebarProps {
   orgs: { id: string; name: string }[]
   activeOrgId: string | null
   pendingReplacementCount: number
+  pendingLeaveCount?: number
 }
 
-export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount }: AppSidebarProps) {
+const employeesPaths = ["/admin/employees", "/admin/wages", "/admin/leaves"]
+
+export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, pendingLeaveCount = 0 }: AppSidebarProps) {
   const pathname = usePathname()
   const { setOpenMobile } = useSidebar()
   const [isPending, startTransition] = useTransition()
@@ -92,16 +95,25 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount }:
             <SidebarGroup>
               <SidebarGroupLabel>Administrácia</SidebarGroupLabel>
               <SidebarMenu>
-                {adminNav.map(({ href, label, icon: Icon }) => (
-                  <SidebarMenuItem key={href}>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
-                      <Link href={href} onClick={() => setOpenMobile(false)}>
-                        <Icon />
-                        <span>{label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {adminNav.map(({ href, label, icon: Icon }) => {
+                  const isEmployees = href === "/admin/employees"
+                  const isActive = isEmployees
+                    ? employeesPaths.some((p) => pathname.startsWith(p))
+                    : pathname.startsWith(href)
+                  return (
+                    <SidebarMenuItem key={href}>
+                      <SidebarMenuButton asChild isActive={isActive}>
+                        <Link href={href} onClick={() => setOpenMobile(false)}>
+                          <Icon />
+                          <span>{label}</span>
+                          {isEmployees && pendingLeaveCount > 0 && (
+                            <span className="ml-auto size-2 rounded-full bg-destructive" />
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroup>
           </>
