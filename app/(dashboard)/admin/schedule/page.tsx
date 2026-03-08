@@ -135,7 +135,7 @@ export default async function AdminSchedulePage({
     startTime: r.startTime,
     endTime: r.endTime,
     allDay: r.allDay,
-    maxClaims: r.maxClaims,
+    maxClaims: (r as Record<string, unknown>).maxClaims as number | undefined ?? 1,
     note: r.note,
     status: r.status,
   }))
