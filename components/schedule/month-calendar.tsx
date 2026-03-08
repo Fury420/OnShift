@@ -254,15 +254,14 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   const todayStr = new Date().toISOString().slice(0, 10)
 
   const nextOpenShift = (() => {
-    for (const week of weeks) {
-      for (const day of week) {
-        if (day.date < todayStr) continue
-        for (const os of day.openShifts) {
-          if (os.acceptedCount < os.maxClaims && os.iMayClaim && !os.myClaimId) {
-            const d = new Date(day.date + "T12:00:00")
-            const label = d.toLocaleDateString("sk-SK", { weekday: "long", day: "numeric", month: "long" })
-            return { ...os, date: day.date, dateLabel: label }
-          }
+    const daysToSearch = view === "week" ? currentWeek : weeks.flat()
+    for (const day of daysToSearch) {
+      if (day.date < todayStr) continue
+      for (const os of day.openShifts) {
+        if (os.acceptedCount < os.maxClaims && os.iMayClaim && !os.myClaimId) {
+          const d = new Date(day.date + "T12:00:00")
+          const label = d.toLocaleDateString("sk-SK", { weekday: "long", day: "numeric", month: "long" })
+          return { ...os, date: day.date, dateLabel: label }
         }
       }
     }
@@ -562,22 +561,27 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
       {/* ── Week view (timeline) ─────────────────────── */}
       {view === "week" && (() => {
-        const allEntries = currentWeek.flatMap(d => [
-          ...d.shifts.map(s => ({ start: s.startTime, end: s.endTime })),
-          ...d.openShifts.map(s => ({ start: s.startTime, end: s.endTime })),
-        ])
-        currentWeek.forEach(day => {
-          const dow = String(new Date(day.date + "T12:00:00").getDay())
-          const bh = businessHours?.get(dow)
-          if (bh && !bh.isClosed && bh.openTime && bh.closeTime)
-            allEntries.push({ start: bh.openTime, end: bh.closeTime })
-        })
         let startHour: number, endHour: number
-        if (allEntries.length > 0) {
-          startHour = Math.min(...allEntries.map(e => Math.floor(timeToMinutes(e.start) / 60)))
-          endHour = Math.max(...allEntries.map(e => Math.ceil(timeToMinutes(e.end) / 60)))
+        if (businessHours && businessHours.size > 0) {
+          const ranges: { start: number; end: number }[] = []
+          businessHours.forEach((bh) => {
+            if (!bh.isClosed && bh.openTime && bh.closeTime) {
+              ranges.push({
+                start: Math.floor(timeToMinutes(bh.openTime) / 60),
+                end: Math.ceil(timeToMinutes(bh.closeTime) / 60),
+              })
+            }
+          })
+          if (ranges.length > 0) {
+            startHour = Math.min(...ranges.map((r) => r.start))
+            endHour = Math.max(...ranges.map((r) => r.end))
+          } else {
+            startHour = 8
+            endHour = 22
+          }
         } else {
-          startHour = 8; endHour = 22
+          startHour = 8
+          endHour = 22
         }
         const PAD = 20
         layoutRef.current = { startHour, PAD }
