@@ -130,7 +130,6 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
               <SelectContent>
                 <SelectItem value="vacation">Dovolenka</SelectItem>
                 <SelectItem value="sick">PN (pracovná neschopnosť)</SelectItem>
-                <SelectItem value="personal">Osobné voľno</SelectItem>
               </SelectContent>
             </Select>
           </div>

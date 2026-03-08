@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Umbrella, ArrowLeftRight, Plus } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -74,10 +75,12 @@ export function RequestTabs({
               <CardTitle className="text-base">
                 {isAdmin ? "Žiadosti o voľno na schválenie" : "Moje žiadosti o voľno"}
               </CardTitle>
-              <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-                <Plus className="size-4" />
-                Nová žiadosť
-              </Button>
+              {isAdmin && (
+                <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
+                  <Plus className="size-4" />
+                  Nová žiadosť
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               {isAdmin ? (
@@ -88,6 +91,11 @@ export function RequestTabs({
                 )
               ) : (
                 <>
+                  <p className="text-sm text-muted-foreground -mt-2 mb-2">
+                    Žiadosť o dovolenku podajte v{" "}
+                    <Link href="/schedule" className="text-primary underline underline-offset-2">Kalendári zmien</Link>
+                    {" "}(tlačidlo „Žiadosť o dovolenku“).
+                  </p>
                   {leavesToApproveAsReplacement.length > 0 && (
                     <div className="flex flex-col gap-2">
                       <p className="text-sm font-medium">Žiadosti na schválenie (ste navrhnutý ako zastup)</p>

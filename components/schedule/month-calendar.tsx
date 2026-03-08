@@ -3,11 +3,12 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Plus, Check } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Check, Umbrella } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
 import type { ColleagueOption } from "@/components/shift-replacement/request-dialog"
+import { NewReplacementDialog } from "@/components/shift-replacement/new-replacement-dialog"
 import { claimShift } from "@/app/actions/schedule"
 import { toast } from "sonner"
 import { ShiftDialog } from "./shift-dialog"
@@ -62,11 +63,9 @@ interface MonthCalendarProps {
   canCreateShifts?: boolean
 }
 
-interface LeaveContext {
-  date: string
-  shiftId?: string
-  shiftLabel?: string
-  colleagues?: ColleagueOption[]
+interface ReplacementContext {
+  shiftId: string
+  shiftLabel: string
 }
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
@@ -117,7 +116,8 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
     return idx >= 0 ? idx : weeks.findIndex((w) => w.some((d) => d.isCurrentMonth)) ?? 0
   })
-  const [leaveCtx, setLeaveCtx] = useState<LeaveContext | null>(null)
+  const [replacementCtx, setReplacementCtx] = useState<ReplacementContext | null>(null)
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [createDate, setCreateDate] = useState<string | undefined>()
   const [createStartTime, setCreateStartTime] = useState<string | undefined>()
@@ -224,13 +224,14 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
     })
   }
 
-  function openLeave(day: CalendarDay, shift: CalendarShift) {
-    setLeaveCtx({
-      date: day.date,
-      shiftId: shift.id,
-      shiftLabel: `${shift.startTime}–${shift.endTime}`,
-      colleagues: allEmployees.filter((e) => e.id !== shift.userId),
-    })
+  function formatShiftLabel(dateStr: string, startTime: string, endTime: string) {
+    const [y, m, d] = dateStr.split("-").map(Number)
+    const dateLabel = new Date(y, m - 1, d).toLocaleDateString("sk-SK", { weekday: "short", day: "numeric", month: "numeric" })
+    return `${dateLabel} ${startTime}–${endTime}`
+  }
+
+  function openReplacement(shiftId: string, shiftLabel: string) {
+    setReplacementCtx({ shiftId, shiftLabel })
   }
 
   function handlePrevWeek() {
@@ -270,32 +271,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {/* ── Nearest open shift banner ── */}
-      {!canCreateShifts && nextOpenShift && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors"
-          onClick={() => {
-            const idx = weeks.findIndex((w) => w.some((d) => d.date === nextOpenShift.date))
-            if (idx >= 0) { setWeekIdx(idx); setView("week") }
-          }}
-        >
-          <div className="flex flex-col gap-0.5">
-            <div className="text-sm font-semibold text-primary">Voľná zmena k dispozícii</div>
-            <div className="text-sm text-muted-foreground capitalize">
-              {nextOpenShift.dateLabel} · {nextOpenShift.startTime}–{nextOpenShift.endTime}
-              {nextOpenShift.maxClaims > 1 && ` · ${nextOpenShift.maxClaims - nextOpenShift.acceptedCount} voľ. miest`}
-            </div>
-          </div>
-          <Button
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); handleClaim(nextOpenShift.id) }}
-            disabled={isPending}
-          >
-            Prihlásiť sa
-          </Button>
-        </div>
-      )}
-
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-2">
         {view === "month" ? (
@@ -321,6 +296,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         )}
 
         <div className="flex items-center gap-2">
+          {!canCreateShifts && (
+            <Button size="sm" variant="outline" onClick={() => setLeaveDialogOpen(true)}>
+              <Umbrella className="size-4" />
+              Žiadosť o dovolenku
+            </Button>
+          )}
           {canCreateShifts && (
             <Button size="sm" onClick={() => openCreateDialog()}>
               <Plus className="size-4" />
@@ -376,7 +357,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                       return (
                         <div key={shift.id} className={cn("rounded-lg px-3 py-2 transition-opacity", clickable && "cursor-pointer hover:opacity-80")}
                           style={{ backgroundColor: shift.color + "28", borderLeft: `3px solid ${shift.color}` }}
-                          onClick={clickable ? () => openLeave(day, shift) : undefined}>
+                          onClick={clickable ? () => openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) : undefined}>
                           <div className="text-sm font-semibold" style={{ color: shift.color }}>{shift.userName.split(" ")[0]}</div>
                           <div className="text-sm opacity-75" style={{ color: shift.color }}>{shift.startTime}–{shift.endTime}</div>
                         </div>
@@ -458,7 +439,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                         <div key={shift.id}
                           className={cn("rounded px-1.5 py-0.5 text-xs leading-tight", clickable && "font-semibold cursor-pointer hover:opacity-75 transition-opacity")}
                           style={{ backgroundColor: shift.color + "28", borderLeft: `3px solid ${shift.color}`, color: shift.color }}
-                          onClick={clickable ? () => openLeave(day, shift) : undefined}>
+                          onClick={clickable ? () => openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) : undefined}>
                           <div className="truncate">{shift.userName.split(" ")[0]}</div>
                           <div className="opacity-80">{shift.startTime}–{shift.endTime}</div>
                         </div>
@@ -658,7 +639,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                 borderLeft: `3px solid ${shift.color}`,
                                 color: shift.color,
                               }}
-                              onClick={clickable ? () => openLeave(day, shift) : undefined}
+                              onClick={clickable ? () => openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) : undefined}
                             >
                               <div className="font-semibold truncate leading-tight">{shift.userName}</div>
                               <div className="opacity-80 leading-tight text-xs">{shift.startTime}–{shift.endTime}</div>
@@ -714,6 +695,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                                 borderLeft: `3px solid ${fc.color}`,
                                 color: fc.color,
                               }}
+                              onClick={isMe ? () => openReplacement(fc.openShift.id, formatShiftLabel(day.date, fc.startTime, fc.endTime)) : undefined}
                             >
                               <div className="font-semibold truncate leading-tight">{fc.userName}</div>
                               <div className="opacity-80 leading-tight text-xs">{fc.startTime}–{fc.endTime}</div>
@@ -748,14 +730,46 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         )
       })()}
 
+      {/* ── Nearest open shift banner (pod kalendárom) ── */}
+      {!canCreateShifts && nextOpenShift && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 cursor-pointer hover:bg-primary/10 transition-colors"
+          onClick={() => {
+            const idx = weeks.findIndex((w) => w.some((d) => d.date === nextOpenShift.date))
+            if (idx >= 0) { setWeekIdx(idx); setView("week") }
+          }}
+        >
+          <div className="flex flex-col gap-0.5">
+            <div className="text-sm font-semibold text-primary">Voľná zmena k dispozícii</div>
+            <div className="text-sm text-muted-foreground capitalize">
+              {nextOpenShift.dateLabel} · {nextOpenShift.startTime}–{nextOpenShift.endTime}
+              {nextOpenShift.maxClaims > 1 && ` · ${nextOpenShift.maxClaims - nextOpenShift.acceptedCount} voľ. miest`}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); handleClaim(nextOpenShift.id) }}
+            disabled={isPending}
+          >
+            Prihlásiť sa
+          </Button>
+        </div>
+      )}
+
       <LeaveRequestDialog
-        open={!!leaveCtx}
-        onOpenChange={(open) => { if (!open) setLeaveCtx(null) }}
-        defaultDate={leaveCtx?.date}
-        shiftId={leaveCtx?.shiftId}
-        shiftLabel={leaveCtx?.shiftLabel}
-        colleagues={leaveCtx?.colleagues}
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        colleagues={allEmployees}
       />
+      {!canCreateShifts && (
+        <NewReplacementDialog
+          open={!!replacementCtx}
+          onOpenChange={(open) => { if (!open) setReplacementCtx(null) }}
+          colleagues={currentUserId ? allEmployees.filter((e) => e.id !== currentUserId) : allEmployees}
+          initialShiftId={replacementCtx?.shiftId}
+          initialShiftLabel={replacementCtx?.shiftLabel}
+        />
+      )}
       {canCreateShifts && (
         <ShiftDialog
           open={createDialogOpen}

@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/db"
-import { shifts, shiftReplacements } from "@/db/schema"
+import { shifts, shiftReplacements, openShiftClaims } from "@/db/schema"
 import { getSession } from "@/lib/session"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { eq, and } from "drizzle-orm"
@@ -20,7 +20,16 @@ export async function requestReplacement(shiftId: string, replacementUserId: str
 
   if (!shift) throw new Error("Zmena neexistuje")
   const role = (session.user as { role?: string }).role
-  if (role !== "admin" && shift.userId !== session.user.id) throw new Error("Nemáš oprávnenie")
+  const isAssignedToMe = shift.userId === session.user.id
+  const [myClaim] =
+    role !== "admin" && !isAssignedToMe
+      ? await db
+          .select({ id: openShiftClaims.id })
+          .from(openShiftClaims)
+          .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.claimedByUserId, session.user.id), eq(openShiftClaims.status, "approved")))
+          .limit(1)
+      : [{ id: null as string | null }]
+  if (role !== "admin" && !isAssignedToMe && !myClaim?.id) throw new Error("Nemáš oprávnenie")
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)

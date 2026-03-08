@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shiftReplacements, shifts, user, leaves } from "@/db/schema"
+import { shiftReplacements, shifts, user, leaves, openShiftClaims } from "@/db/schema"
 import { getSession } from "@/lib/session"
 import { eq, and, gte, lt, desc, isNull, ne } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
@@ -64,7 +64,7 @@ export default async function ZastupPage({
 
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ })
 
-  const [myRequests, incomingRequests, allPendingRequests, leavesData, upcomingShiftsRaw, colleaguesRaw, ...rest] = await Promise.all([
+  const [myRequests, incomingRequests, allPendingRequests, leavesData, assignedShiftsRaw, claimedOpenShiftsRaw, colleaguesRaw, ...rest] = await Promise.all([
     db
       .select({
         id: shiftReplacements.id,
@@ -147,6 +147,13 @@ export default async function ZastupPage({
       .orderBy(shifts.date),
 
     db
+      .select({ id: shifts.id, date: shifts.date, startTime: shifts.startTime, endTime: shifts.endTime })
+      .from(shifts)
+      .innerJoin(openShiftClaims, and(eq(openShiftClaims.shiftId, shifts.id), eq(openShiftClaims.claimedByUserId, userId), eq(openShiftClaims.status, "approved")))
+      .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, todayStr)))
+      .orderBy(shifts.date),
+
+    db
       .select({ id: user.id, name: user.name })
       .from(user)
       .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId)))
@@ -226,7 +233,16 @@ export default async function ZastupPage({
       : "",
   }))
 
-  const myShifts = upcomingShiftsRaw.map((s) => {
+  const upcomingShiftsRaw = [...assignedShiftsRaw, ...claimedOpenShiftsRaw]
+  const seenIds = new Set<string>()
+  const deduped = upcomingShiftsRaw
+    .filter((s) => {
+      if (seenIds.has(s.id)) return false
+      seenIds.add(s.id)
+      return true
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+  const myShifts = deduped.map((s) => {
     const [y, m, d] = s.date.split("-").map(Number)
     const dateLabel = new Date(y, m - 1, d).toLocaleDateString("sk-SK", { weekday: "short", day: "numeric", month: "numeric" })
     return { id: s.id, label: `${dateLabel} ${shortTime(s.startTime)}–${shortTime(s.endTime)}` }

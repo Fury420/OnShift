@@ -226,7 +226,7 @@ export function AdminLeavesTable({ rows }: Props) {
                   <SelectContent>
                     <SelectItem value="vacation">Dovolenka</SelectItem>
                     <SelectItem value="sick">PN (pracovná neschopnosť)</SelectItem>
-                    <SelectItem value="personal">Osobné voľno</SelectItem>
+                    <SelectItem value="personal" disabled>Osobné voľno (neaktívne)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
