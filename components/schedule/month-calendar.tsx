@@ -70,6 +70,7 @@ interface ReplacementContext {
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
 const HOUR_HEIGHT = 56
+const VISIBLE_HOURS = 10
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number)
@@ -128,6 +129,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
   const dragRef = useRef<{ date: string; anchorMinutes: number } | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const timelineScrollRef = useRef<HTMLDivElement>(null)
   const layoutRef = useRef({ startHour: 8, PAD: 20 })
 
   const getMinutesFromY = useCallback((y: number, containerRect: DOMRect) => {
@@ -185,6 +187,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
       window.removeEventListener("mouseup", onMouseUp)
     }
   }, [getMinutesFromY, canCreateShifts])
+
+  useEffect(() => {
+    if (view === "week" && timelineScrollRef.current) {
+      timelineScrollRef.current.scrollTop = 0
+    }
+  }, [view, weekIdx])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
   const weekLabel = (() => {
@@ -586,6 +594,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         const PAD = 20
         layoutRef.current = { startHour, PAD }
         const totalHeight = (endHour - startHour) * HOUR_HEIGHT + PAD * 2
+        const visibleHeight = VISIBLE_HOURS * HOUR_HEIGHT + PAD * 2
         const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
         const yPos = (time: string) => PAD + ((timeToMinutes(time) - startHour * 60) / 60) * HOUR_HEIGHT
         const hPos = (start: string, end: string) => yPos(end) - yPos(start)
@@ -608,8 +617,12 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
               })}
             </div>
 
-            {/* Timeline body */}
-            <div className="grid grid-cols-[48px_repeat(7,1fr)]" style={{ height: totalHeight }}>
+            {/* Timeline body – výška cca 10 hodín, vertikálny scroll, začína od začiatku pracovných hodín */}
+            <div
+              ref={timelineScrollRef}
+              className="grid grid-cols-[48px_repeat(7,1fr)] overflow-y-auto overflow-x-hidden"
+              style={{ maxHeight: visibleHeight, minHeight: Math.min(visibleHeight, totalHeight) }}
+            >
               {/* Hour labels */}
               <div className="relative border-r" style={{ height: totalHeight }}>
                 {hours.map((h) => (

@@ -67,6 +67,7 @@ interface AdminMonthCalendarProps {
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
 const HOUR_HEIGHT = 56
+const VISIBLE_HOURS = 10
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number)
@@ -146,6 +147,7 @@ export function AdminMonthCalendar({
   const dragRef = useRef<DragState | null>(null)
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const timelineScrollRef = useRef<HTMLDivElement>(null)
   const dragMovedRef = useRef(false)
 
   const layoutRef = useRef({ startHour: 8, PAD: 20 })
@@ -297,6 +299,12 @@ export function AdminMonthCalendar({
       window.removeEventListener("mouseup", onMouseUp)
     }
   }, [getMinutesFromY, startDrag, weeks, startTransition])
+
+  useEffect(() => {
+    if (view === "week" && timelineScrollRef.current) {
+      timelineScrollRef.current.scrollTop = 0
+    }
+  }, [view, weekIdx])
 
   const currentWeek = weeks[weekIdx] ?? weeks[0]
   const weekLabel = (() => {
@@ -722,26 +730,32 @@ export function AdminMonthCalendar({
 
         {/* ── Week view (timeline) ─────────────────────── */}
         {view === "week" && (() => {
-          const allEntries = currentWeek.flatMap(d => [
-            ...d.shifts.map(s => ({ start: s.startTime, end: s.endTime })),
-            ...d.openShifts.map(s => ({ start: s.startTime, end: s.endTime })),
-          ])
-          currentWeek.forEach(day => {
-            const dow = String(new Date(day.date + "T12:00:00").getDay())
-            const bh = businessHours?.get(dow)
-            if (bh && !bh.isClosed && bh.openTime && bh.closeTime)
-              allEntries.push({ start: bh.openTime, end: bh.closeTime })
-          })
           let startHour: number, endHour: number
-          if (allEntries.length > 0) {
-            startHour = Math.min(...allEntries.map(e => Math.floor(timeToMinutes(e.start) / 60)))
-            endHour = Math.max(...allEntries.map(e => Math.ceil(timeToMinutes(e.end) / 60)))
+          if (businessHours && businessHours.size > 0) {
+            const ranges: { start: number; end: number }[] = []
+            businessHours.forEach((bh) => {
+              if (!bh.isClosed && bh.openTime && bh.closeTime) {
+                ranges.push({
+                  start: Math.floor(timeToMinutes(bh.openTime) / 60),
+                  end: Math.ceil(timeToMinutes(bh.closeTime) / 60),
+                })
+              }
+            })
+            if (ranges.length > 0) {
+              startHour = Math.min(...ranges.map((r) => r.start))
+              endHour = Math.max(...ranges.map((r) => r.end))
+            } else {
+              startHour = 8
+              endHour = 22
+            }
           } else {
-            startHour = 8; endHour = 22
+            startHour = 8
+            endHour = 22
           }
           const PAD = 20
           layoutRef.current = { startHour, PAD }
           const totalHeight = (endHour - startHour) * HOUR_HEIGHT + PAD * 2
+          const visibleHeight = VISIBLE_HOURS * HOUR_HEIGHT + PAD * 2
           const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i)
           const yPos = (time: string) => PAD + ((timeToMinutes(time) - startHour * 60) / 60) * HOUR_HEIGHT
           const hPos = (start: string, end: string) => yPos(end) - yPos(start)
@@ -764,8 +778,12 @@ export function AdminMonthCalendar({
                 })}
               </div>
 
-              {/* Timeline body */}
-              <div className="grid grid-cols-[48px_repeat(7,1fr)] overflow-y-auto" style={{ maxHeight: "70vh" }}>
+              {/* Timeline body – výška cca 10 hodín, vertikálny scroll, začína od začiatku pracovných hodín */}
+              <div
+                ref={timelineScrollRef}
+                className="grid grid-cols-[48px_repeat(7,1fr)] overflow-y-auto overflow-x-hidden"
+                style={{ maxHeight: visibleHeight, minHeight: Math.min(visibleHeight, totalHeight) }}
+              >
                 {/* Hour labels */}
                 <div className="relative border-r" style={{ height: totalHeight }}>
                   {hours.map((h) => (
