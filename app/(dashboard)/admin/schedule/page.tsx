@@ -72,50 +72,22 @@ export default async function AdminSchedulePage({
       .where(eq(businessHours.organizationId, orgId)),
 
     // Fetch shift rules that could overlap with the visible range
-    (async () => {
-      try {
-        return await db
-          .select()
-          .from(shiftRules)
-          .where(
+    db
+      .select()
+      .from(shiftRules)
+      .where(
+        and(
+          eq(shiftRules.organizationId, orgId),
+          or(
+            and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
             and(
-              eq(shiftRules.organizationId, orgId),
-              or(
-                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
-                and(
-                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
-                  lte(shiftRules.validFrom, endDate),
-                  gte(shiftRules.validUntil, startDate),
-                ),
-              ),
+              or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
+              lte(shiftRules.validFrom, endDate),
+              gte(shiftRules.validUntil, startDate),
             ),
-          )
-      } catch {
-        return await db
-          .select({
-            id: shiftRules.id, organizationId: shiftRules.organizationId, userId: shiftRules.userId,
-            frequency: shiftRules.frequency, date: shiftRules.date, days: shiftRules.days,
-            dayOfMonth: shiftRules.dayOfMonth, validFrom: shiftRules.validFrom, validUntil: shiftRules.validUntil,
-            startTime: shiftRules.startTime, endTime: shiftRules.endTime, allDay: shiftRules.allDay,
-            note: shiftRules.note, status: shiftRules.status, createdAt: shiftRules.createdAt, updatedAt: shiftRules.updatedAt,
-          })
-          .from(shiftRules)
-          .where(
-            and(
-              eq(shiftRules.organizationId, orgId),
-              or(
-                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
-                and(
-                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
-                  lte(shiftRules.validFrom, endDate),
-                  gte(shiftRules.validUntil, startDate),
-                ),
-              ),
-            ),
-          )
-          .then(rows => rows.map(r => ({ ...r, maxClaims: 1 })))
-      }
-    })(),
+          ),
+        ),
+      ),
 
     // Fetch exceptions for all rules in this org (filtered by date range)
     db
@@ -161,7 +133,7 @@ export default async function AdminSchedulePage({
     startTime: r.startTime,
     endTime: r.endTime,
     allDay: r.allDay,
-    maxClaims: (r as Record<string, unknown>).maxClaims as number | undefined ?? 1,
+    maxClaims: r.maxClaims ?? 1,
     note: r.note,
     status: r.status,
   }))

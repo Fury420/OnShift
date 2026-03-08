@@ -299,5 +299,114 @@ await client`
   END $$
 `
 
+// ── Migration 0009: shift_rules + shift_exceptions ──────────────────────
+
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shift_exception_action') THEN
+      CREATE TYPE "public"."shift_exception_action" AS ENUM('skip', 'modify');
+    END IF;
+  END $$
+`
+
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shift_rule_frequency') THEN
+      CREATE TYPE "public"."shift_rule_frequency" AS ENUM('once', 'weekly', 'monthly');
+    END IF;
+  END $$
+`
+
+await client`
+  CREATE TABLE IF NOT EXISTS "shift_exceptions" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "rule_id" uuid NOT NULL,
+    "date" date NOT NULL,
+    "action" "shift_exception_action" NOT NULL,
+    "user_id" text,
+    "start_time" time,
+    "end_time" time,
+    "note" text,
+    "created_at" timestamp DEFAULT now() NOT NULL
+  )
+`
+
+await client`
+  CREATE TABLE IF NOT EXISTS "shift_rules" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "organization_id" uuid NOT NULL,
+    "user_id" text,
+    "frequency" "shift_rule_frequency" NOT NULL,
+    "date" date,
+    "days" text,
+    "day_of_month" text,
+    "valid_from" date,
+    "valid_until" date,
+    "start_time" time,
+    "end_time" time,
+    "all_day" boolean DEFAULT false NOT NULL,
+    "note" text,
+    "status" "shift_status" DEFAULT 'draft' NOT NULL,
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL
+  )
+`
+
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shift_exceptions_rule_id_shift_rules_id_fk') THEN
+      ALTER TABLE "shift_exceptions" ADD CONSTRAINT "shift_exceptions_rule_id_shift_rules_id_fk"
+      FOREIGN KEY ("rule_id") REFERENCES "public"."shift_rules"("id") ON DELETE cascade;
+    END IF;
+  END $$
+`
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shift_exceptions_user_id_user_id_fk') THEN
+      ALTER TABLE "shift_exceptions" ADD CONSTRAINT "shift_exceptions_user_id_user_id_fk"
+      FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null;
+    END IF;
+  END $$
+`
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shift_rules_organization_id_organizations_id_fk') THEN
+      ALTER TABLE "shift_rules" ADD CONSTRAINT "shift_rules_organization_id_organizations_id_fk"
+      FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade;
+    END IF;
+  END $$
+`
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shift_rules_user_id_user_id_fk') THEN
+      ALTER TABLE "shift_rules" ADD CONSTRAINT "shift_rules_user_id_user_id_fk"
+      FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade;
+    END IF;
+  END $$
+`
+
+// ── Migration 0010: leaves.suggested_replacement_user_id ─────────────────
+
+await client`
+  ALTER TABLE "leaves" ADD COLUMN IF NOT EXISTS "suggested_replacement_user_id" text
+`
+await client`
+  DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'leaves_suggested_replacement_user_id_user_id_fk') THEN
+      ALTER TABLE "leaves" ADD CONSTRAINT "leaves_suggested_replacement_user_id_user_id_fk"
+      FOREIGN KEY ("suggested_replacement_user_id") REFERENCES "public"."user"("id") ON DELETE set null;
+    END IF;
+  END $$
+`
+
+// ── Migration 0011: max_claims ──────────────────────────────────────────
+
+await client`
+  ALTER TABLE "shift_rules" ADD COLUMN IF NOT EXISTS "max_claims" integer DEFAULT 1 NOT NULL
+`
+await client`
+  ALTER TABLE "shifts" ADD COLUMN IF NOT EXISTS "max_claims" integer DEFAULT 1 NOT NULL
+`
+
 console.log("Migrations complete")
 await client.end()

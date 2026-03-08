@@ -50,35 +50,18 @@ export default async function SchedulePage({
       )
       .orderBy(asc(shifts.startTime)),
 
-    (async () => {
-      try {
-        return await db
-          .select({
-            id: shifts.id,
-            date: shifts.date,
-            startTime: shifts.startTime,
-            endTime: shifts.endTime,
-            note: shifts.note,
-            maxClaims: shifts.maxClaims,
-          })
-          .from(shifts)
-          .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, startDate), lte(shifts.date, endDate)))
-          .orderBy(asc(shifts.startTime))
-      } catch {
-        return await db
-          .select({
-            id: shifts.id,
-            date: shifts.date,
-            startTime: shifts.startTime,
-            endTime: shifts.endTime,
-            note: shifts.note,
-          })
-          .from(shifts)
-          .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, startDate), lte(shifts.date, endDate)))
-          .orderBy(asc(shifts.startTime))
-          .then(rows => rows.map(r => ({ ...r, maxClaims: 1 })))
-      }
-    })(),
+    db
+      .select({
+        id: shifts.id,
+        date: shifts.date,
+        startTime: shifts.startTime,
+        endTime: shifts.endTime,
+        note: shifts.note,
+        maxClaims: shifts.maxClaims,
+      })
+      .from(shifts)
+      .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, startDate), lte(shifts.date, endDate)))
+      .orderBy(asc(shifts.startTime)),
 
     db
       .select({ id: shifts.id, date: shifts.date, startTime: shifts.startTime, endTime: shifts.endTime, note: shifts.note })
@@ -113,86 +96,28 @@ export default async function SchedulePage({
       .where(eq(businessHours.organizationId, orgId)),
 
     // Fetch published + open shift rules that overlap with visible range
-    (async () => {
-      try {
-        return await db
-          .select()
-          .from(shiftRules)
-          .where(
+    db
+      .select()
+      .from(shiftRules)
+      .where(
+        and(
+          eq(shiftRules.organizationId, orgId),
+          or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
+          or(
+            and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
             and(
-              eq(shiftRules.organizationId, orgId),
-              or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
-              or(
-                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
-                and(
-                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
-                  lte(shiftRules.validFrom, endDate),
-                  gte(shiftRules.validUntil, startDate),
-                ),
-              ),
+              or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
+              lte(shiftRules.validFrom, endDate),
+              gte(shiftRules.validUntil, startDate),
             ),
-          )
-      } catch {
-        return await db
-          .select({
-            id: shiftRules.id,
-            organizationId: shiftRules.organizationId,
-            userId: shiftRules.userId,
-            frequency: shiftRules.frequency,
-            date: shiftRules.date,
-            days: shiftRules.days,
-            dayOfMonth: shiftRules.dayOfMonth,
-            validFrom: shiftRules.validFrom,
-            validUntil: shiftRules.validUntil,
-            startTime: shiftRules.startTime,
-            endTime: shiftRules.endTime,
-            allDay: shiftRules.allDay,
-            note: shiftRules.note,
-            status: shiftRules.status,
-            createdAt: shiftRules.createdAt,
-            updatedAt: shiftRules.updatedAt,
-          })
-          .from(shiftRules)
-          .where(
-            and(
-              eq(shiftRules.organizationId, orgId),
-              or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
-              or(
-                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
-                and(
-                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
-                  lte(shiftRules.validFrom, endDate),
-                  gte(shiftRules.validUntil, startDate),
-                ),
-              ),
-            ),
-          )
-          .then(rows => rows.map(r => ({ ...r, maxClaims: 1 })))
-      }
-    })(),
+          ),
+        ),
+      ),
 
-    (async () => {
-      try {
-        return await db
-          .select()
-          .from(shiftExceptions)
-          .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate)))
-      } catch {
-        return await db
-          .select({
-            id: shiftExceptions.id,
-            ruleId: shiftExceptions.ruleId,
-            date: shiftExceptions.date,
-            action: shiftExceptions.action,
-            userId: shiftExceptions.userId,
-            startTime: shiftExceptions.startTime,
-            endTime: shiftExceptions.endTime,
-            note: shiftExceptions.note,
-          })
-          .from(shiftExceptions)
-          .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate)))
-      }
-    })(),
+    db
+      .select()
+      .from(shiftExceptions)
+      .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate))),
   ])
 
   const onLeave = (userId: string, date: string) =>
@@ -204,7 +129,7 @@ export default async function SchedulePage({
   const ruleData: ShiftRule[] = rules.map((r) => ({
     id: r.id, organizationId: r.organizationId, userId: r.userId, frequency: r.frequency,
     date: r.date, days: r.days, dayOfMonth: r.dayOfMonth, validFrom: r.validFrom, validUntil: r.validUntil,
-    startTime: r.startTime, endTime: r.endTime, allDay: r.allDay, maxClaims: (r as Record<string, unknown>).maxClaims as number | undefined ?? 1, note: r.note, status: r.status,
+    startTime: r.startTime, endTime: r.endTime, allDay: r.allDay, maxClaims: r.maxClaims ?? 1, note: r.note, status: r.status,
   }))
   const exData: ShiftException[] = exceptions.map((e) => ({
     id: e.id, ruleId: e.ruleId, date: e.date, action: e.action,

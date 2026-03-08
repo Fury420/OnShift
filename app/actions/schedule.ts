@@ -197,24 +197,12 @@ export async function claimShift(shiftId: string) {
   const orgId = await getOrganizationId()
   const userId = session.user.id
 
-  let shift: { id: string; status: string; startTime: string; endTime: string; date: string; maxClaims: number }
-  try {
-    const [s] = await db
-      .select({ id: shifts.id, status: shifts.status, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims })
-      .from(shifts)
-      .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
-      .limit(1)
-    if (!s) throw new Error("Zmena nie je dostupná")
-    shift = { ...s, maxClaims: s.maxClaims ?? 1 }
-  } catch {
-    const [s] = await db
-      .select({ id: shifts.id, status: shifts.status, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date })
-      .from(shifts)
-      .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
-      .limit(1)
-    if (!s) throw new Error("Zmena nie je dostupná")
-    shift = { ...s, maxClaims: 1 }
-  }
+  const [shift] = await db
+    .select({ id: shifts.id, status: shifts.status, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims })
+    .from(shifts)
+    .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
+    .limit(1)
+  if (!shift) throw new Error("Zmena nie je dostupná")
 
   const approvedClaims = await db
     .select({ id: openShiftClaims.id })
@@ -263,46 +251,23 @@ export async function claimRuleShift(ruleId: string, date: string, startTime: st
   const mc = maxClaims ?? 1
 
   // Find or create the concrete open shift for this rule+date
-  let existingShift: { id: string; maxClaims: number }
-  try {
-    let [found] = await db
-      .select({ id: shifts.id, maxClaims: shifts.maxClaims })
-      .from(shifts)
-      .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
-      .limit(1)
+  let [existingShift] = await db
+    .select({ id: shifts.id, maxClaims: shifts.maxClaims })
+    .from(shifts)
+    .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
+    .limit(1)
 
-    if (!found) {
-      const [created] = await db.insert(shifts).values({
-        organizationId: orgId,
-        userId: null,
-        date,
-        startTime,
-        endTime,
-        maxClaims: mc,
-        status: "open",
-      }).returning({ id: shifts.id, maxClaims: shifts.maxClaims })
-      found = created
-    }
-    existingShift = { id: found.id, maxClaims: found.maxClaims ?? 1 }
-  } catch {
-    let [found] = await db
-      .select({ id: shifts.id })
-      .from(shifts)
-      .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
-      .limit(1)
-
-    if (!found) {
-      const [created] = await db.insert(shifts).values({
-        organizationId: orgId,
-        userId: null,
-        date,
-        startTime,
-        endTime,
-        status: "open",
-      }).returning({ id: shifts.id })
-      found = created
-    }
-    existingShift = { id: found.id, maxClaims: mc }
+  if (!existingShift) {
+    const [created] = await db.insert(shifts).values({
+      organizationId: orgId,
+      userId: null,
+      date,
+      startTime,
+      endTime,
+      maxClaims: mc,
+      status: "open",
+    }).returning({ id: shifts.id, maxClaims: shifts.maxClaims })
+    existingShift = created
   }
 
   const approvedClaims = await db

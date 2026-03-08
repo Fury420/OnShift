@@ -2,7 +2,7 @@
 
 import { db } from "@/db"
 import { shiftRules, shiftExceptions } from "@/db/schema"
-import { eq, and, sql } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
@@ -36,45 +36,22 @@ export async function createShiftRule(data: {
   await requireAdmin()
   const orgId = await getOrganizationId()
 
-  try {
-    await db.insert(shiftRules).values({
-      organizationId: orgId,
-      userId: data.userId ?? null,
-      frequency: data.frequency,
-      date: data.frequency === "once" ? (data.date ?? null) : null,
-      days: data.frequency === "weekly" ? (data.days ?? null) : null,
-      dayOfMonth: data.frequency === "monthly" ? (data.dayOfMonth ?? null) : null,
-      validFrom: data.frequency !== "once" ? (data.validFrom ?? null) : null,
-      validUntil: data.frequency !== "once" ? (data.validUntil ?? null) : null,
-      startTime: data.allDay ? null : (data.startTime ?? null),
-      endTime: data.allDay ? null : (data.endTime ?? null),
-      allDay: data.allDay,
-      note: data.note || null,
-      maxClaims: data.maxClaims ?? 1,
-      status: data.userId ? "draft" : "open",
-    })
-  } catch {
-    // Fallback: DB nemá stĺpec max_claims (migrácia 0011 ešte nebola spustená)
-    await db.execute(sql`
-      INSERT INTO shift_rules
-        (organization_id, user_id, frequency, date, days, day_of_month, valid_from, valid_until, start_time, end_time, all_day, note, status)
-      VALUES (
-        ${orgId},
-        ${data.userId ?? null},
-        ${data.frequency},
-        ${data.frequency === "once" ? (data.date ?? null) : null},
-        ${data.frequency === "weekly" ? (data.days ?? null) : null},
-        ${null},
-        ${data.frequency !== "once" ? (data.validFrom ?? null) : null},
-        ${data.frequency !== "once" ? (data.validUntil ?? null) : null},
-        ${data.allDay ? null : (data.startTime ?? null)},
-        ${data.allDay ? null : (data.endTime ?? null)},
-        ${data.allDay},
-        ${data.note || null},
-        ${data.userId ? "draft" : "open"}
-      )
-    `)
-  }
+  await db.insert(shiftRules).values({
+    organizationId: orgId,
+    userId: data.userId ?? null,
+    frequency: data.frequency,
+    date: data.frequency === "once" ? (data.date ?? null) : null,
+    days: data.frequency === "weekly" ? (data.days ?? null) : null,
+    dayOfMonth: data.frequency === "monthly" ? (data.dayOfMonth ?? null) : null,
+    validFrom: data.frequency !== "once" ? (data.validFrom ?? null) : null,
+    validUntil: data.frequency !== "once" ? (data.validUntil ?? null) : null,
+    startTime: data.allDay ? null : (data.startTime ?? null),
+    endTime: data.allDay ? null : (data.endTime ?? null),
+    allDay: data.allDay,
+    note: data.note || null,
+    maxClaims: data.maxClaims ?? 1,
+    status: data.userId ? "draft" : "open",
+  })
 
   revalidateSchedule()
 }
