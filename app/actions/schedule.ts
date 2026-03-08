@@ -2,7 +2,7 @@
 
 import { db } from "@/db"
 import { shifts, openShiftClaims } from "@/db/schema"
-import { eq, inArray, and, lt, gt, ne } from "drizzle-orm"
+import { eq, inArray, and, lt, gt, ne, isNotNull } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
@@ -59,7 +59,7 @@ export async function createShift(data: {
     endTime: data.endTime,
     note: data.note || null,
     maxClaims: data.maxClaims ?? 1,
-    status: data.userId ? "draft" : "open",
+    status: "draft",
   })
 
   revalidateSchedule()
@@ -113,7 +113,7 @@ export async function createShiftsBatch(data: {
         endTime: data.endTime,
         note: data.note || null,
         maxClaims: data.maxClaims ?? 1,
-        status: data.userId ? "draft" : "open",
+        status: "draft",
       })
       created++
     }
@@ -141,6 +141,14 @@ export async function updateShift(
     await db.delete(openShiftClaims).where(eq(openShiftClaims.shiftId, id))
   }
 
+  // Status: priradená zmena → vždy draft; voľná zmena → ponechať aktuálny status (draft zostane draft, open zostane open)
+  const [current] = await db
+    .select({ status: shifts.status })
+    .from(shifts)
+    .where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
+    .limit(1)
+  const newStatus = data.userId ? "draft" : (current?.status === "open" ? "open" : "draft")
+
   await db
     .update(shifts)
     .set({
@@ -150,7 +158,7 @@ export async function updateShift(
       endTime: data.endTime,
       note: data.note || null,
       maxClaims: data.maxClaims ?? 1,
-      status: data.userId ? "draft" : "open",
+      status: newStatus,
       updatedAt: new Date(),
     })
     .where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
@@ -256,16 +264,36 @@ export async function toggleShiftStatus(id: string, current: "draft" | "open" | 
 }
 
 // ─── Publish all draft shifts ───────────────────────────────────────────────
+// Priradené zmeny → published, voľné zmeny → open (viditeľné pre zamestnancov)
 
 export async function publishDraftShifts(ids: string[]) {
   await requireAdmin()
   const orgId = await getOrganizationId()
   if (ids.length === 0) return
 
+  const base = and(inArray(shifts.id, ids), eq(shifts.organizationId, orgId))
   await db
     .update(shifts)
     .set({ status: "published", updatedAt: new Date() })
-    .where(and(inArray(shifts.id, ids), eq(shifts.organizationId, orgId)))
+    .where(and(base, isNotNull(shifts.userId)))
+  await db
+    .update(shifts)
+    .set({ status: "open", updatedAt: new Date() })
+    .where(and(base, eq(shifts.userId, null)))
+
+  revalidateSchedule()
+}
+
+// ─── Delete all draft shifts (koncepty) ────────────────────────────────────
+
+export async function deleteAllDraftShifts(ids: string[]) {
+  await requireAdmin()
+  const orgId = await getOrganizationId()
+  if (ids.length === 0) return
+
+  await db
+    .delete(shifts)
+    .where(and(inArray(shifts.id, ids), eq(shifts.organizationId, orgId), eq(shifts.status, "draft")))
 
   revalidateSchedule()
 }

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ShiftDialog, type ShiftForEdit, type EmployeeOption } from "./shift-dialog"
-import { deleteShift, toggleShiftStatus, publishDraftShifts, updateShift, adminRemoveClaim } from "@/app/actions/schedule"
+import { deleteShift, toggleShiftStatus, publishDraftShifts, deleteAllDraftShifts, updateShift, adminRemoveClaim } from "@/app/actions/schedule"
 import { Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -36,6 +36,7 @@ export interface AdminOpenShift {
   startTime: string
   endTime: string
   note: string | null
+  status: "draft" | "open"
   claims: { claimId: string; userId: string; userName: string; color: string }[]
   maxClaims: number
 }
@@ -325,7 +326,10 @@ export function AdminMonthCalendar({
   }
 
   const allDraftIds = weeks.flatMap((week) =>
-    week.flatMap((day) => day.shifts.filter((s) => s.status === "draft").map((s) => s.id)),
+    week.flatMap((day) => [
+      ...day.shifts.filter((s) => s.status === "draft").map((s) => s.id),
+      ...day.openShifts.filter((os) => os.status === "draft").map((os) => os.id),
+    ]),
   )
 
   function openCreate(date?: string, startTime?: string, endTime?: string) {
@@ -397,10 +401,15 @@ export function AdminMonthCalendar({
           )}
           <div className="flex items-center gap-2">
             {allDraftIds.length > 0 && (
-              <Button variant="secondary" size="sm" onClick={handlePublishAll} disabled={isPending}>
-                <Send className="size-4" />
-                Publikovať všetky ({allDraftIds.length})
-              </Button>
+              <>
+                <Button variant="secondary" size="sm" onClick={handlePublishAll} disabled={isPending}>
+                  <Send className="size-4" />
+                  Publikovať všetky ({allDraftIds.length})
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => startTransition(() => deleteAllDraftShifts(allDraftIds))} disabled={isPending} className="text-destructive hover:text-destructive">
+                  Vymazať všetky koncepty
+                </Button>
+              </>
             )}
             <Button size="sm" onClick={() => openCreate()}>
               <Plus className="size-4" />
@@ -508,12 +517,13 @@ export function AdminMonthCalendar({
                         ))
                       }
                       return (
-                        <div key={os.id} className="rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1.5 bg-muted/10">
+                        <div key={os.id} className={cn("rounded-lg border border-dashed border-muted-foreground/30 px-3 py-2 flex flex-col gap-1.5 bg-muted/10", os.status === "draft" && "opacity-70")}>
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-muted-foreground">
                                 Voľná zmena
                                 {os.maxClaims > 1 && <span className="text-xs ml-1">({os.claims.length}/{os.maxClaims})</span>}
+                                {os.status === "draft" && <span className="text-xs ml-1 text-muted-foreground/70">· koncept</span>}
                               </div>
                               <div className="text-xs text-muted-foreground/70">{os.startTime}–{os.endTime}</div>
                             </div>
@@ -594,10 +604,10 @@ export function AdminMonthCalendar({
                     ))
                   }
                   return (
-                    <div key={os.id} className="rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background">
+                    <div key={os.id} className={cn("rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background", os.status === "draft" && "opacity-70")}>
                       <div className="flex items-center justify-between gap-0.5">
                         <span className="truncate text-muted-foreground font-medium text-[10px]">
-                          Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}
+                          Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                         </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -891,7 +901,7 @@ export function AdminMonthCalendar({
                             return (
                               <div
                                 key={os.id}
-                                className="absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden pointer-events-auto group/openblock"
+                                className={cn("absolute rounded-md border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-xs bg-muted/10 overflow-hidden pointer-events-auto group/openblock", os.status === "draft" && "opacity-70")}
                                 style={{ top, height, width: `calc(${widthPct}% - 4px)`, left: `calc(${leftPct}% + 2px)` }}
                               >
                                 {/* Hover action buttons */}
@@ -912,7 +922,7 @@ export function AdminMonthCalendar({
                                   </button>
                                 </div>
                                 <div className="font-medium text-muted-foreground leading-tight">
-                                  Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}
+                                  Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                                 </div>
                                 <div className="text-muted-foreground/70 text-[10px] leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (

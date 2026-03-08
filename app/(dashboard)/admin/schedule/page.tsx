@@ -94,9 +94,9 @@ export default async function AdminSchedulePage({
           }
         })
 
-      // Open shifts with claims
+      // Open shifts (draft aj open) s claims
       const dayOpenShifts: AdminOpenShift[] = monthShifts
-        .filter((s) => s.date === dateStr && s.status === "open")
+        .filter((s) => s.date === dateStr && !s.userId && (s.status === "draft" || s.status === "open"))
         .map((s) => {
           const shiftClaims = claims.filter((c) => c.shiftId === s.id)
           return {
@@ -106,6 +106,7 @@ export default async function AdminSchedulePage({
             endTime: shortTime(s.endTime),
             note: s.note,
             maxClaims: s.maxClaims,
+            status: s.status as "draft" | "open",
             claims: shiftClaims.map((c) => {
               const emp = colorMap.get(c.claimedByUserId)
               return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
