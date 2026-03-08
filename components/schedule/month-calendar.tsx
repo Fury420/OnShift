@@ -768,7 +768,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
         defaultStartTime={requestStartTime}
         defaultEndTime={requestEndTime}
       />
-      {canCreateShifts && currentUserId && (
+      {canCreateShifts && (
         <ShiftDialog
           open={createDialogOpen}
           onOpenChange={(open) => { if (!open) closeCreateDialog() }}
@@ -776,7 +776,6 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
           defaultDate={createDate}
           defaultStartTime={createStartTime}
           defaultEndTime={createEndTime}
-          fixedUserId={currentUserId}
         />
       )}
     </div>

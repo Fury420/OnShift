@@ -36,9 +36,12 @@ export async function createShiftRule(data: {
   await requireAdmin()
   const orgId = await getOrganizationId()
 
+  // Ponuka (voľná zmena) — vždy bez priradeného používateľa (null/undefined/"" → null)
+  const userId = (typeof data.userId === "string" && data.userId.trim()) ? data.userId : null
+
   await db.insert(shiftRules).values({
     organizationId: orgId,
-    userId: data.userId ?? null,
+    userId,
     frequency: data.frequency,
     date: data.frequency === "once" ? (data.date ?? null) : null,
     days: data.frequency === "weekly" ? (data.days ?? null) : null,
@@ -50,7 +53,7 @@ export async function createShiftRule(data: {
     allDay: data.allDay,
     note: data.note || null,
     maxClaims: data.maxClaims ?? 1,
-    status: data.userId ? "draft" : "open",
+    status: userId ? "draft" : "open",
   })
 
   revalidateSchedule()
