@@ -65,6 +65,7 @@ export async function requestReplacement(shiftId: string, replacementUserId: str
   ).catch(console.error)
 
   revalidatePath("/replacements")
+  return { shiftDate: shift.date }
 }
 
 export async function respondToReplacement(id: string, response: "accepted" | "rejected") {

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export function NewReplacementDialog({ open, onOpenChange, myShifts = [], colleagues, initialShiftId, initialShiftLabel }: Props) {
+  const router = useRouter()
   const [shiftId, setShiftId] = useState("")
   const [colleagueId, setColleagueId] = useState("")
   const [note, setNote] = useState("")
@@ -68,8 +70,13 @@ export function NewReplacementDialog({ open, onOpenChange, myShifts = [], collea
 
     startTransition(async () => {
       try {
-        await requestReplacement(effectiveShiftId, colleagueId, note || undefined)
+        const result = await requestReplacement(effectiveShiftId, colleagueId, note || undefined)
         handleOpenChange(false)
+        if (result?.shiftDate) {
+          router.push(`/replacements?month=${result.shiftDate.slice(0, 7)}`)
+        } else {
+          router.refresh()
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Nastala chyba")
       }

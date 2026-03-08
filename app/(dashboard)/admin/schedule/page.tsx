@@ -1,10 +1,10 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shifts, user, businessHours, openShiftClaims } from "@/db/schema"
+import { shifts, user, businessHours, openShiftClaims, leaves } from "@/db/schema"
 import { eq, and, gte, lte, asc, or } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
-import { AdminMonthCalendar, type AdminCalendarDay, type AdminCalendarShift, type AdminOpenShift } from "@/components/schedule/admin-month-calendar"
+import { AdminMonthCalendar, type AdminCalendarDay, type AdminCalendarShift, type AdminOpenShift, type AdminCalendarLeave } from "@/components/schedule/admin-month-calendar"
 import { getMonthGrid, toDateStr, formatMonthLabel, shortTime } from "@/lib/week"
 
 export default async function AdminSchedulePage({
@@ -24,7 +24,7 @@ export default async function AdminSchedulePage({
   const endDate = toDateStr(weeks[weeks.length - 1][6])
   const todayStr = toDateStr(new Date())
 
-  const [monthShifts, claims, employees, orgBusinessHours] = await Promise.all([
+  const [monthShifts, claims, employees, orgBusinessHours, allLeaves] = await Promise.all([
     // All shifts in date range (draft, open, published)
     db
       .select({
@@ -69,6 +69,12 @@ export default async function AdminSchedulePage({
       .select()
       .from(businessHours)
       .where(eq(businessHours.organizationId, orgId)),
+
+    // Approved + pending leaves
+    db
+      .select({ userId: leaves.userId, startDate: leaves.startDate, endDate: leaves.endDate, type: leaves.type, status: leaves.status })
+      .from(leaves)
+      .where(and(eq(leaves.organizationId, orgId), or(eq(leaves.status, "approved"), eq(leaves.status, "pending")), lte(leaves.startDate, endDate), gte(leaves.endDate, startDate))),
   ])
 
   const colorMap = new Map(employees.map((e) => [e.id, { name: e.name, color: e.color ?? "#6b7280" }]))
@@ -116,12 +122,28 @@ export default async function AdminSchedulePage({
           }
         })
 
+      const dayLeaves: AdminCalendarLeave[] = allLeaves
+        .filter((l) => l.startDate <= dateStr && l.endDate >= dateStr)
+        .map((l) => {
+          const emp = colorMap.get(l.userId)
+          return {
+            userId: l.userId,
+            userName: emp?.name ?? "—",
+            color: emp?.color ?? "#6b7280",
+            type: l.type,
+            status: l.status as "approved" | "pending",
+            startDate: l.startDate,
+            endDate: l.endDate,
+          }
+        })
+
       return {
         date: dateStr,
         isCurrentMonth: date.getMonth() === monthNum - 1,
         isToday: dateStr === todayStr,
         shifts: dayShifts,
         openShifts: dayOpenShifts,
+        leaves: dayLeaves,
       }
     }),
   )

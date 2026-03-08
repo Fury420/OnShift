@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Plus, Send } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Send, Palmtree } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -41,12 +41,23 @@ export interface AdminOpenShift {
   maxClaims: number
 }
 
+export interface AdminCalendarLeave {
+  userId: string
+  userName: string
+  color: string
+  type: "vacation" | "sick" | "personal"
+  status: "approved" | "pending"
+  startDate: string
+  endDate: string
+}
+
 export interface AdminCalendarDay {
   date: string
   isCurrentMonth: boolean
   isToday: boolean
   shifts: AdminCalendarShift[]
   openShifts: AdminOpenShift[]
+  leaves?: AdminCalendarLeave[]
 }
 
 export interface BusinessHoursEntry {
@@ -69,6 +80,7 @@ interface AdminMonthCalendarProps {
 }
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
+const LEAVE_LABELS: Record<string, string> = { vacation: "Dovolenka", sick: "PN", personal: "Osobné voľno" }
 const HOUR_HEIGHT = 56
 const VISIBLE_HOURS = 8
 
@@ -489,8 +501,32 @@ export function AdminMonthCalendar({
                   </button>
                 </div>
 
+                {(day.leaves ?? []).length > 0 && (
+                  <div className="flex flex-col gap-1 pl-10">
+                    {(day.leaves ?? []).map((l, i) => (
+                      <div
+                        key={`leave-${l.userId}-${i}`}
+                        className={cn("rounded-lg px-3 py-2 flex items-center gap-2", l.status === "pending" && "border border-dashed")}
+                        style={{
+                          backgroundColor: l.color + (l.status === "approved" ? "25" : "12"),
+                          borderColor: l.status === "pending" ? l.color + "60" : undefined,
+                        }}
+                      >
+                        <Palmtree className="size-4 shrink-0" style={{ color: l.color }} />
+                        <div>
+                          <div className="text-sm font-semibold" style={{ color: l.color }}>{l.userName.split(" ")[0]}</div>
+                          <div className="text-xs opacity-75" style={{ color: l.color }}>
+                            {LEAVE_LABELS[l.type] ?? l.type}
+                            {l.status === "pending" && " · čaká na schválenie"}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {day.shifts.length === 0 && day.openShifts.length === 0 ? (
-                  <p className="text-xs text-muted-foreground pl-10">Žiadne zmeny</p>
+                  (day.leaves ?? []).length === 0 && <p className="text-xs text-muted-foreground pl-10">Žiadne zmeny</p>
                 ) : (
                   <div className="flex flex-col gap-1.5 pl-10">
                     {day.shifts.map((shift) => (
@@ -668,6 +704,22 @@ export function AdminMonthCalendar({
                   )
                 })
 
+                const leaveBlocks = (day.leaves ?? []).map((l, i) => (
+                  <div
+                    key={`leave-${l.userId}-${i}`}
+                    className={cn("rounded px-1 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate", l.status === "pending" && "border border-dashed")}
+                    style={{
+                      backgroundColor: l.color + (l.status === "approved" ? "25" : "12"),
+                      borderColor: l.status === "pending" ? l.color + "60" : undefined,
+                      color: l.color,
+                    }}
+                  >
+                    <Palmtree className="size-2.5 shrink-0" />
+                    <span className="truncate font-medium">{l.userName.split(" ")[0]}</span>
+                    {l.status === "pending" && <span className="text-[9px] opacity-60">(čaká)</span>}
+                  </div>
+                ))
+
                 const shiftBlocks = day.shifts.map((shift) => (
                   <DropdownMenu key={shift.id}>
                     <DropdownMenuTrigger asChild>
@@ -742,12 +794,13 @@ export function AdminMonthCalendar({
                           {bh.openTime!.slice(0, 5)}–{bh.closeTime!.slice(0, 5)}
                         </div>
                         <div className="flex flex-col gap-0.5" onClick={(e) => e.stopPropagation()}>
+                          {leaveBlocks}
                           {shiftBlocks}
                           {openShiftBlocks}
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-0.5">{shiftBlocks}{openShiftBlocks}</div>
+                      <div className="flex flex-col gap-0.5">{leaveBlocks}{shiftBlocks}{openShiftBlocks}</div>
                     )}
                   </div>
                 )
@@ -807,6 +860,49 @@ export function AdminMonthCalendar({
                 })}
                 <div className="border-l bg-muted/30 w-4 shrink-0" aria-hidden />
               </div>
+
+              {/* Leave strips */}
+              {(() => {
+                const weekLeaves = new Map<string, { leave: AdminCalendarLeave; days: string[] }>()
+                currentWeek.forEach((day) => {
+                  (day.leaves ?? []).forEach((l) => {
+                    const key = `${l.userId}-${l.startDate}-${l.endDate}`
+                    if (!weekLeaves.has(key)) weekLeaves.set(key, { leave: l, days: [] })
+                    weekLeaves.get(key)!.days.push(day.date)
+                  })
+                })
+                if (weekLeaves.size === 0) return null
+                return (
+                  <div className={cn("grid border-b", gridCols)}>
+                    <div />
+                    {currentWeek.map((day) => (
+                      <div key={day.date} className="border-l flex flex-col gap-0.5 py-0.5 px-0.5">
+                        {(day.leaves ?? []).map((l) => {
+                          const key = `${l.userId}-${l.startDate}-${l.endDate}`
+                          const entry = weekLeaves.get(key)
+                          const isFirst = entry?.days[0] === day.date
+                          return (
+                            <div
+                              key={key}
+                              className={cn("rounded px-1.5 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate", l.status === "pending" && "border border-dashed")}
+                              style={{
+                                backgroundColor: l.color + (l.status === "approved" ? "25" : "12"),
+                                borderColor: l.status === "pending" ? l.color + "60" : undefined,
+                                color: l.color,
+                              }}
+                            >
+                              <Palmtree className="size-2.5 shrink-0" />
+                              {isFirst && <span className="truncate font-medium">{l.userName.split(" ")[0]}</span>}
+                              {isFirst && l.status === "pending" && <span className="text-[9px] opacity-60">(čaká)</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                    <div className="border-l" />
+                  </div>
+                )
+              })()}
 
               {/* Timeline body – výška 8 hodín, vertikálny scroll, začína od začiatku pracovných hodín */}
               <div

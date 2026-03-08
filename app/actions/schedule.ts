@@ -175,7 +175,7 @@ export async function updateShift(
       recipientIds: notifyIds,
       type: "shift_modified",
       title: `Zmena na ${data.date} bola upravená`,
-      linkUrl: "/schedule",
+      linkUrl: `/schedule?month=${data.date.slice(0, 7)}&date=${data.date}`,
       referenceId: id,
     }).catch(console.error)
   }
@@ -288,13 +288,19 @@ export async function toggleShiftStatus(id: string, current: "draft" | "open" | 
 
   // Notify when publishing (draft → published)
   if (newStatus === "published" && shift?.userId) {
+    const dateLabel = new Date(shift.date + "T12:00:00").toLocaleDateString("sk-SK", {
+      weekday: "short",
+      day: "numeric",
+      month: "numeric",
+    })
     createNotification({
       organizationId: orgId,
       actorId: session.user.id,
       recipientIds: [shift.userId],
       type: "shift_assigned",
-      title: `Bola vám priradená zmena na ${shift.date}`,
-      linkUrl: "/schedule",
+      title: "Bola ti pridelená zmena",
+      body: dateLabel,
+      linkUrl: `/schedule?month=${shift.date.slice(0, 7)}&date=${shift.date}`,
       referenceId: id,
     }).catch(console.error)
   }

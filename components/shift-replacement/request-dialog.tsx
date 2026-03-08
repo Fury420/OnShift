@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -33,6 +34,7 @@ interface RequestDialogProps {
 }
 
 export function RequestDialog({ open, onOpenChange, shift, colleagues }: RequestDialogProps) {
+  const router = useRouter()
   const [replacementUserId, setReplacementUserId] = useState("")
   const [note, setNote] = useState("")
   const [error, setError] = useState("")
@@ -47,10 +49,15 @@ export function RequestDialog({ open, onOpenChange, shift, colleagues }: Request
     setError("")
     startTransition(async () => {
       try {
-        await requestReplacement(shift.id, replacementUserId, note || undefined)
+        const result = await requestReplacement(shift.id, replacementUserId, note || undefined)
         setReplacementUserId("")
         setNote("")
         onOpenChange(false)
+        if (result?.shiftDate) {
+          router.push(`/replacements?month=${result.shiftDate.slice(0, 7)}`)
+        } else {
+          router.refresh()
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Nastala chyba")
       }

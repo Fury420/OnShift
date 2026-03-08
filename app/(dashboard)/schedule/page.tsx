@@ -2,11 +2,11 @@ export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
 import { shifts, user, leaves, openShiftClaims, businessHours } from "@/db/schema"
-import { eq, and, gte, lte, asc } from "drizzle-orm"
+import { eq, and, gte, lte, asc, or } from "drizzle-orm"
 import { getSession } from "@/lib/session"
 import { getOrganizationId } from "@/lib/auth-guard"
 import { redirect } from "next/navigation"
-import { MonthCalendar, type CalendarDay, type CalendarShift, type OpenShift } from "@/components/schedule/month-calendar"
+import { MonthCalendar, type CalendarDay, type CalendarShift, type OpenShift, type CalendarLeave } from "@/components/schedule/month-calendar"
 import { getMonthGrid, toDateStr, formatMonthLabel, shortTime } from "@/lib/week"
 
 export default async function SchedulePage({
@@ -84,11 +84,11 @@ export default async function SchedulePage({
       .where(eq(user.organizationId, orgId))
       .orderBy(asc(user.name)),
 
-    // Approved leaves
+    // Approved + pending leaves
     db
-      .select({ userId: leaves.userId, startDate: leaves.startDate, endDate: leaves.endDate })
+      .select({ userId: leaves.userId, startDate: leaves.startDate, endDate: leaves.endDate, type: leaves.type, status: leaves.status })
       .from(leaves)
-      .where(and(eq(leaves.organizationId, orgId), eq(leaves.status, "approved"), lte(leaves.startDate, endDate), gte(leaves.endDate, startDate))),
+      .where(and(eq(leaves.organizationId, orgId), or(eq(leaves.status, "approved"), eq(leaves.status, "pending")), lte(leaves.startDate, endDate), gte(leaves.endDate, startDate))),
 
     // Otváracie hodiny (pre časové rozmedzie kalendára)
     db
@@ -98,7 +98,7 @@ export default async function SchedulePage({
   ])
 
   const onLeave = (userId: string, date: string) =>
-    approvedLeaves.some((l) => l.userId === userId && l.startDate <= date && l.endDate >= date)
+    approvedLeaves.some((l) => l.status === "approved" && l.userId === userId && l.startDate <= date && l.endDate >= date)
 
   const colorMap = new Map(
     employees.map((e) => [e.id, { id: e.id, name: e.name, color: e.color ?? "#6b7280" }]),
@@ -148,12 +148,28 @@ export default async function SchedulePage({
           }
         })
 
+      const dayLeaves: CalendarLeave[] = approvedLeaves
+        .filter((l) => l.startDate <= dateStr && l.endDate >= dateStr)
+        .map((l) => {
+          const emp = colorMap.get(l.userId)
+          return {
+            userId: l.userId,
+            userName: emp?.name ?? "—",
+            color: emp?.color ?? "#6b7280",
+            type: l.type,
+            status: l.status as "approved" | "pending",
+            startDate: l.startDate,
+            endDate: l.endDate,
+          }
+        })
+
       return {
         date: dateStr,
         isCurrentMonth: date.getMonth() === monthNum - 1,
         isToday: dateStr === todayStr,
         shifts: dayShifts,
         openShifts: dayOpenShifts,
+        leaves: dayLeaves,
       }
     }),
   )
