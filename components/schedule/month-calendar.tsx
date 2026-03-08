@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Plus, Check, Umbrella } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Check, Umbrella, ArrowLeftRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
@@ -355,10 +355,20 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     {day.shifts.map((shift) => {
                       const clickable = shift.isCurrentUser && !isPast
                       return (
-                        <div key={shift.id} className={cn("rounded-lg px-3 py-2 transition-opacity", clickable && "cursor-pointer hover:opacity-80")}
+                        <div key={shift.id} className={cn("rounded-lg px-3 py-2 transition-opacity relative group/block", clickable && "cursor-pointer hover:opacity-80")}
                           style={{ backgroundColor: shift.color + "28", borderLeft: `3px solid ${shift.color}` }}
                           onClick={clickable ? () => openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) : undefined}>
-                          <div className="text-sm font-semibold" style={{ color: shift.color }}>{shift.userName.split(" ")[0]}</div>
+                          {clickable && (
+                            <button
+                              type="button"
+                              className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover/block:opacity-100 hover:bg-black/10 transition-opacity"
+                              title="Požiadať o zastup"
+                              onClick={(e) => { e.stopPropagation(); openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) }}
+                            >
+                              <ArrowLeftRight className="size-3.5 text-muted-foreground" />
+                            </button>
+                          )}
+                          <div className="text-sm font-semibold pr-6" style={{ color: shift.color }}>{shift.userName.split(" ")[0]}</div>
                           <div className="text-sm opacity-75" style={{ color: shift.color }}>{shift.startTime}–{shift.endTime}</div>
                         </div>
                       )
@@ -366,19 +376,33 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     {day.openShifts.map((os) => {
                       const isFull = os.acceptedCount >= os.maxClaims
                       if (isFull) {
-                        return os.claimedByUsers.map((u) => (
-                          <div
-                            key={`fc-${u.claimId}`}
-                            className="rounded-lg px-3 py-2"
-                            style={{
-                              backgroundColor: u.color + "28",
-                              borderLeft: `3px solid ${u.color}`,
-                            }}
-                          >
-                            <div className="text-sm font-semibold" style={{ color: u.color }}>{u.userName.split(" ")[0]}</div>
-                            <div className="text-sm opacity-75" style={{ color: u.color }}>{os.startTime}–{os.endTime}</div>
-                          </div>
-                        ))
+                        return os.claimedByUsers.map((u) => {
+                          const isMe = u.userId === currentUserId
+                          return (
+                            <div
+                              key={`fc-${u.claimId}`}
+                              className={cn("rounded-lg px-3 py-2 relative group/block", isMe && "cursor-pointer hover:opacity-90")}
+                              style={{
+                                backgroundColor: u.color + "28",
+                                borderLeft: `3px solid ${u.color}`,
+                              }}
+                              onClick={isMe ? () => openReplacement(os.id, formatShiftLabel(day.date, os.startTime, os.endTime)) : undefined}
+                            >
+                              {isMe && (
+                                <button
+                                  type="button"
+                                  className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover/block:opacity-100 hover:bg-black/10 transition-opacity"
+                                  title="Požiadať o zastup"
+                                  onClick={(e) => { e.stopPropagation(); openReplacement(os.id, formatShiftLabel(day.date, os.startTime, os.endTime)) }}
+                                >
+                                  <ArrowLeftRight className="size-3.5 text-muted-foreground" />
+                                </button>
+                              )}
+                              <div className="text-sm font-semibold pr-6" style={{ color: u.color }}>{u.userName.split(" ")[0]}</div>
+                              <div className="text-sm opacity-75" style={{ color: u.color }}>{os.startTime}–{os.endTime}</div>
+                            </div>
+                          )
+                        })
                       }
                       const canClaim = os.iMayClaim && !isPast
                       const isClaimed = !!os.myClaimId
@@ -436,11 +460,20 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     {day.shifts.map((shift) => {
                       const clickable = shift.isCurrentUser && !isPast
                       return (
-                        <div key={shift.id}
-                          className={cn("rounded px-1.5 py-0.5 text-xs leading-tight", clickable && "font-semibold cursor-pointer hover:opacity-75 transition-opacity")}
+                        <div key={shift.id} className={cn("rounded px-1.5 py-0.5 text-xs leading-tight relative group/block", clickable && "font-semibold cursor-pointer hover:opacity-75 transition-opacity")}
                           style={{ backgroundColor: shift.color + "28", borderLeft: `3px solid ${shift.color}`, color: shift.color }}
                           onClick={clickable ? () => openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) : undefined}>
-                          <div className="truncate">{shift.userName.split(" ")[0]}</div>
+                          {clickable && (
+                            <button
+                              type="button"
+                              className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover/block:opacity-100 hover:bg-black/10 transition-opacity"
+                              title="Požiadať o zastup"
+                              onClick={(e) => { e.stopPropagation(); openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) }}
+                            >
+                              <ArrowLeftRight className="size-2.5" style={{ color: shift.color }} />
+                            </button>
+                          )}
+                          <div className="truncate pr-4">{shift.userName.split(" ")[0]}</div>
                           <div className="opacity-80">{shift.startTime}–{shift.endTime}</div>
                         </div>
                       )
@@ -448,20 +481,34 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                     {day.openShifts.map((os) => {
                       const isFull = os.acceptedCount >= os.maxClaims
                       if (isFull) {
-                        return os.claimedByUsers.map((u) => (
-                          <div
-                            key={`fc-${u.claimId}`}
-                            className="rounded px-1.5 py-0.5 text-xs leading-tight"
-                            style={{
-                              backgroundColor: u.color + "28",
-                              borderLeft: `3px solid ${u.color}`,
-                              color: u.color,
-                            }}
-                          >
-                            <div className="truncate font-medium">{u.userName.split(" ")[0]}</div>
-                            <div className="opacity-80">{os.startTime}–{os.endTime}</div>
-                          </div>
-                        ))
+                        return os.claimedByUsers.map((u) => {
+                          const isMe = u.userId === currentUserId
+                          return (
+                            <div
+                              key={`fc-${u.claimId}`}
+                              className={cn("rounded px-1.5 py-0.5 text-xs leading-tight relative group/block", isMe && "cursor-pointer hover:opacity-90")}
+                              style={{
+                                backgroundColor: u.color + "28",
+                                borderLeft: `3px solid ${u.color}`,
+                                color: u.color,
+                              }}
+                              onClick={isMe ? () => openReplacement(os.id, formatShiftLabel(day.date, os.startTime, os.endTime)) : undefined}
+                            >
+                              {isMe && (
+                                <button
+                                  type="button"
+                                  className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover/block:opacity-100 hover:bg-black/10 transition-opacity"
+                                  title="Požiadať o zastup"
+                                  onClick={(e) => { e.stopPropagation(); openReplacement(os.id, formatShiftLabel(day.date, os.startTime, os.endTime)) }}
+                                >
+                                  <ArrowLeftRight className="size-2.5" style={{ color: u.color }} />
+                                </button>
+                              )}
+                              <div className="truncate font-medium pr-4">{u.userName.split(" ")[0]}</div>
+                              <div className="opacity-80">{os.startTime}–{os.endTime}</div>
+                            </div>
+                          )
+                        })
                       }
                       const canClaimGrid = os.iMayClaim && !isPast
                       return (
@@ -630,7 +677,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             <div
                               key={shift.id}
                               className={cn(
-                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm overflow-hidden pointer-events-auto",
+                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm overflow-hidden pointer-events-auto group/block",
                                 clickable && "cursor-pointer hover:opacity-80 transition-opacity",
                               )}
                               style={{
@@ -641,7 +688,17 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               }}
                               onClick={clickable ? () => openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) : undefined}
                             >
-                              <div className="font-semibold truncate leading-tight">{shift.userName}</div>
+                              {clickable && (
+                                <button
+                                  type="button"
+                                  className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover/block:opacity-100 hover:bg-black/10 transition-opacity z-10"
+                                  title="Požiadať o zastup"
+                                  onClick={(e) => { e.stopPropagation(); openReplacement(shift.id, formatShiftLabel(day.date, shift.startTime, shift.endTime)) }}
+                                >
+                                  <ArrowLeftRight className="size-3" style={{ color: shift.color }} />
+                                </button>
+                              )}
+                              <div className="font-semibold truncate leading-tight pr-5">{shift.userName}</div>
                               <div className="opacity-80 leading-tight text-xs">{shift.startTime}–{shift.endTime}</div>
                             </div>
                           )
@@ -686,7 +743,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                             <div
                               key={`fc-${fc.claimId}`}
                               className={cn(
-                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm overflow-hidden pointer-events-auto",
+                                "absolute flex flex-col justify-start rounded-md px-1.5 py-1 text-sm overflow-hidden pointer-events-auto group/block",
                                 isMe && "cursor-pointer hover:opacity-80 transition-opacity",
                               )}
                               style={{
@@ -697,7 +754,17 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, allEmpl
                               }}
                               onClick={isMe ? () => openReplacement(fc.openShift.id, formatShiftLabel(day.date, fc.startTime, fc.endTime)) : undefined}
                             >
-                              <div className="font-semibold truncate leading-tight">{fc.userName}</div>
+                              {isMe && (
+                                <button
+                                  type="button"
+                                  className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover/block:opacity-100 hover:bg-black/10 transition-opacity z-10"
+                                  title="Požiadať o zastup"
+                                  onClick={(e) => { e.stopPropagation(); openReplacement(fc.openShift.id, formatShiftLabel(day.date, fc.startTime, fc.endTime)) }}
+                                >
+                                  <ArrowLeftRight className="size-3" style={{ color: fc.color }} />
+                                </button>
+                              )}
+                              <div className="font-semibold truncate leading-tight pr-5">{fc.userName}</div>
                               <div className="opacity-80 leading-tight text-xs">{fc.startTime}–{fc.endTime}</div>
                               {isMe && <div className="text-green-600 flex items-center gap-0.5 text-xs mt-0.5"><Check className="size-2.5" /> Prihlásený</div>}
                             </div>
