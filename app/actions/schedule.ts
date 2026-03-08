@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/db"
-import { shifts, openShiftClaims } from "@/db/schema"
+import { shifts } from "@/db/schema"
 import { eq, inArray, and, lt, gt, ne } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
@@ -198,35 +198,21 @@ export async function claimShift(shiftId: string) {
   const userId = session.user.id
 
   const [shift] = await db
-    .select({ id: shifts.id, status: shifts.status, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims })
+    .select({ id: shifts.id, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims })
     .from(shifts)
     .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
     .limit(1)
   if (!shift) throw new Error("Zmena nie je dostupná")
 
-  const approvedClaims = await db
-    .select({ id: openShiftClaims.id })
-    .from(openShiftClaims)
-    .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.status, "approved")))
-  if (approvedClaims.length >= shift.maxClaims) throw new Error("Zmena je už plne obsadená")
-
-  const [existingClaim] = await db
-    .select({ id: openShiftClaims.id })
-    .from(openShiftClaims)
-    .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.claimedByUserId, userId)))
-    .limit(1)
-  if (existingClaim) throw new Error("Už ste sa na túto zmenu prihlásili")
-
   await checkConflict(userId, shift.date, shift.startTime, shift.endTime)
 
-  await db.insert(openShiftClaims).values({
-    organizationId: orgId,
-    shiftId,
-    claimedByUserId: userId,
-    status: "approved",
-  })
+  // Count published shifts matching this open shift's time slot
+  const claimedShifts = await db
+    .select({ id: shifts.id })
+    .from(shifts)
+    .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "published"), eq(shifts.date, shift.date), eq(shifts.startTime, shift.startTime), eq(shifts.endTime, shift.endTime)))
+  if (claimedShifts.length >= shift.maxClaims) throw new Error("Zmena je už plne obsadená")
 
-  // Create a published shift for this user
   await db.insert(shifts).values({
     organizationId: orgId,
     userId,
@@ -250,45 +236,12 @@ export async function claimRuleShift(ruleId: string, date: string, startTime: st
 
   const mc = maxClaims ?? 1
 
-  // Find or create the concrete open shift for this rule+date
-  let [existingShift] = await db
-    .select({ id: shifts.id, maxClaims: shifts.maxClaims })
+  // Count published shifts matching this time slot
+  const claimedShifts = await db
+    .select({ id: shifts.id })
     .from(shifts)
-    .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
-    .limit(1)
-
-  if (!existingShift) {
-    const [created] = await db.insert(shifts).values({
-      organizationId: orgId,
-      userId: null,
-      date,
-      startTime,
-      endTime,
-      maxClaims: mc,
-      status: "open",
-    }).returning({ id: shifts.id, maxClaims: shifts.maxClaims })
-    existingShift = created
-  }
-
-  const approvedClaims = await db
-    .select({ id: openShiftClaims.id })
-    .from(openShiftClaims)
-    .where(and(eq(openShiftClaims.shiftId, existingShift.id), eq(openShiftClaims.status, "approved")))
-  if (approvedClaims.length >= existingShift.maxClaims) throw new Error("Zmena je už plne obsadená")
-
-  const [alreadyClaimed] = await db
-    .select({ id: openShiftClaims.id })
-    .from(openShiftClaims)
-    .where(and(eq(openShiftClaims.shiftId, existingShift.id), eq(openShiftClaims.claimedByUserId, userId)))
-    .limit(1)
-  if (alreadyClaimed) throw new Error("Už ste sa na túto zmenu prihlásili")
-
-  await db.insert(openShiftClaims).values({
-    organizationId: orgId,
-    shiftId: existingShift.id,
-    claimedByUserId: userId,
-    status: "approved",
-  })
+    .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "published"), eq(shifts.date, date), eq(shifts.startTime, startTime), eq(shifts.endTime, endTime)))
+  if (claimedShifts.length >= mc) throw new Error("Zmena je už plne obsadená")
 
   await db.insert(shifts).values({
     organizationId: orgId,

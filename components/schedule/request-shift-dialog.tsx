@@ -98,10 +98,6 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
     e.preventDefault()
     setError("")
 
-    if (frequency === "weekly" && selectedDays.length === 0) {
-      setError("Vyberte aspoň jeden deň v týždni.")
-      return
-    }
     if (frequency === "weekly" && (!validFrom || !validUntil)) {
       setError("Vyberte obdobie platnosti.")
       return
@@ -114,7 +110,7 @@ export function RequestShiftDialog({ open, onOpenChange, date: initialDate, defa
         } else {
           await requestShiftRule({
             frequency: "weekly",
-            days: selectedDays.join(","),
+            days: selectedDays.length > 0 ? selectedDays.join(",") : "0,1,2,3,4,5,6",
             validFrom,
             validUntil,
             startTime: allDay ? undefined : startTime,

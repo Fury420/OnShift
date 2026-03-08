@@ -161,11 +161,6 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
     e.preventDefault()
     setError("")
 
-    if (frequency === "weekly" && selectedDays.length === 0) {
-      setError("Vyberte aspoň jeden deň v týždni.")
-      return
-    }
-
     const resolvedUserId = fixedUserId ? fixedUserId : (userId === OPEN_SHIFT_VALUE ? null : userId)
 
     startTransition(async () => {
@@ -175,7 +170,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
             userId: resolvedUserId,
             frequency,
             date: frequency === "once" ? date : null,
-            days: frequency === "weekly" ? selectedDays.join(",") : null,
+            days: frequency === "weekly" ? (selectedDays.length > 0 ? selectedDays.join(",") : "0,1,2,3,4,5,6") : null,
             dayOfMonth: null,
             validFrom: frequency !== "once" ? validFrom || null : null,
             validUntil: frequency !== "once" ? validUntil || null : null,

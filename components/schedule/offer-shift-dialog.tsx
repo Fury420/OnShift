@@ -100,9 +100,6 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
     if (frequency === "once" && !date) {
       setError("Vyberte dátum."); return
     }
-    if (frequency === "weekly" && selectedDays.length === 0) {
-      setError("Vyberte aspoň jeden deň v týždni."); return
-    }
     if (frequency === "weekly" && (!validFrom || !validUntil)) {
       setError("Vyberte obdobie platnosti."); return
     }
@@ -113,7 +110,7 @@ export function OfferShiftDialog({ open, onOpenChange, defaultDate, defaultStart
           userId: null,
           frequency,
           date: frequency === "once" ? date : undefined,
-          days: frequency === "weekly" ? selectedDays.join(",") : undefined,
+          days: frequency === "weekly" ? (selectedDays.length > 0 ? selectedDays.join(",") : "0,1,2,3,4,5,6") : undefined,
           validFrom: frequency !== "once" ? validFrom : undefined,
           validUntil: frequency !== "once" ? validUntil : undefined,
           startTime: allDay ? undefined : startTime,
