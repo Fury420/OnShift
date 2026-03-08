@@ -114,12 +114,10 @@ export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps
               Archivovaní {archived.length > 0 && <span className="ml-1 opacity-60">{archived.length}</span>}
             </Button>
           </div>
-          {!showArchived && (
-            <Button onClick={openCreate}>
-              <Plus className="size-4" />
-              Pridať zamestnanca
-            </Button>
-          )}
+          <Button onClick={openCreate}>
+            <Plus className="size-4" />
+            Pridať zamestnanca
+          </Button>
         </div>
       </div>
 
