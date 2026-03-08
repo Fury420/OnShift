@@ -480,7 +480,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                           onClick={canClaim ? () => handleClaim(os.id) : undefined}>
                           <div className="flex items-center justify-between">
                             <div className="text-sm font-medium text-muted-foreground">
-                              Voľná zmena
+                              Neobsadená zmena
                               {os.maxClaims > 1 && <span className="ml-1 text-xs opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </div>
                             {canClaim && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
@@ -584,7 +584,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                           onClick={canClaimGrid ? () => handleClaim(os.id) : undefined}>
                           <div className="flex items-center justify-between gap-0.5">
                             <span className="truncate text-muted-foreground font-medium">
-                              Voľná
+                              Neobsadená
                               {os.maxClaims > 1 && <span className="ml-0.5 text-[10px] opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </span>
                             {os.myClaimId && <Check className="size-2.5 text-green-600 shrink-0" />}
@@ -861,7 +861,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                               onClick={canClaimTl ? () => handleClaim(os.id) : undefined}
                             >
                               <div className="font-medium text-muted-foreground leading-tight">
-                                Voľná
+                                Neobsadená
                                 {os.maxClaims > 1 && <span className="ml-0.5 opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                               </div>
                               <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
@@ -950,7 +950,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
           }}
         >
           <div className="flex flex-col gap-0.5">
-            <div className="text-sm font-semibold text-primary">Voľná zmena k dispozícii</div>
+            <div className="text-sm font-semibold text-primary">Neobsadená zmena k dispozícii</div>
             <div className="text-sm text-muted-foreground capitalize">
               {nextOpenShift.dateLabel} · {nextOpenShift.startTime}–{nextOpenShift.endTime}
               {nextOpenShift.maxClaims > 1 && ` · ${nextOpenShift.maxClaims - nextOpenShift.acceptedCount} voľ. miest`}

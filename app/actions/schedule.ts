@@ -142,7 +142,7 @@ export async function updateShift(
     await db.delete(openShiftClaims).where(eq(openShiftClaims.shiftId, id))
   }
 
-  // Status: priradená zmena → vždy draft; voľná zmena → ponechať aktuálny status (draft zostane draft, open zostane open)
+  // Status: priradená zmena → vždy draft; neobsadená zmena → ponechať aktuálny status (draft zostane draft, open zostane open)
   const [current] = await db
     .select({ status: shifts.status, userId: shifts.userId })
     .from(shifts)
@@ -309,7 +309,7 @@ export async function toggleShiftStatus(id: string, current: "draft" | "open" | 
 }
 
 // ─── Publish all draft shifts ───────────────────────────────────────────────
-// Priradené zmeny → published, voľné zmeny → open (viditeľné pre zamestnancov)
+// Priradené zmeny → published, neobsadené zmeny → open (viditeľné pre zamestnancov)
 
 export async function publishDraftShifts(ids: string[]) {
   const session = await requireAdmin()
@@ -355,7 +355,7 @@ export async function publishDraftShifts(ids: string[]) {
         actorId: session.user.id,
         recipientIds: employeeIds,
         type: "open_shift_published",
-        title: "K dispozícii sú nové voľné zmeny",
+        title: "K dispozícii sú nové neobsadené zmeny",
         linkUrl: "/schedule",
       }),
     ).catch(console.error)

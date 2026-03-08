@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { Palmtree } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,9 +23,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePicker, DateRangePicker } from "@/components/ui/date-picker"
 import { createShift, createShiftsBatch, updateShift } from "@/app/actions/schedule"
+import { getApprovedLeavesInRange } from "@/app/actions/leaves"
 import { cn } from "@/lib/utils"
 
-// "__open__" = voľná zmena (žiadny zamestnanec)
+// "__open__" = neobsadená zmena (žiadny zamestnanec)
 const OPEN_SHIFT_VALUE = "__open__"
 
 const DAY_LABELS = [
@@ -85,8 +87,24 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   const [maxClaims, setMaxClaims] = useState(1)
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
+  const [leavesInRange, setLeavesInRange] = useState<{ startDate: string; endDate: string; type: string }[]>([])
 
   const isOpenShift = fixedUserId ? false : userId === OPEN_SHIFT_VALUE
+
+  const periodFrom = frequency === "once" ? date : validFrom
+  const periodTo = frequency === "once" ? date : validUntil
+
+  useEffect(() => {
+    if (!open || !userId || userId === OPEN_SHIFT_VALUE || !periodFrom || !periodTo) {
+      setLeavesInRange([])
+      return
+    }
+    let cancelled = false
+    getApprovedLeavesInRange(userId, periodFrom, periodTo).then((list) => {
+      if (!cancelled) setLeavesInRange(list)
+    }).catch(() => { if (!cancelled) setLeavesInRange([]) })
+    return () => { cancelled = true }
+  }, [open, userId, periodFrom, periodTo])
 
   useEffect(() => {
     if (open) {
@@ -227,19 +245,35 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
           {!fixedUserId && (
             <div className="flex flex-col gap-1.5">
               <Label>Zamestnanec</Label>
-              <Select value={userId} onValueChange={setUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Vyberte zamestnanca" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={OPEN_SHIFT_VALUE}>Voľná zmena</SelectItem>
-                  {employees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-3 items-start">
+                <Select value={userId} onValueChange={setUserId}>
+                  <SelectTrigger className="flex-1 min-w-0">
+                    <SelectValue placeholder="Vyberte zamestnanca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={OPEN_SHIFT_VALUE}>Neobsadená zmena</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {leavesInRange.length > 0 && (
+                  <div className="flex items-center gap-1.5 shrink-0 text-amber-600 dark:text-amber-500 text-sm">
+                    <Palmtree className="size-4" />
+                    <span className="whitespace-nowrap">
+                      {leavesInRange.map((l) => {
+                        const from = l.startDate.split("-")
+                        const to = l.endDate.split("-")
+                        const fromStr = from.length === 3 ? `${parseInt(from[2], 10)}. ${parseInt(from[1], 10)}. ${from[0]}` : l.startDate
+                        const toStr = to.length === 3 ? `${parseInt(to[2], 10)}. ${parseInt(to[1], 10)}. ${to[0]}` : l.endDate
+                        return fromStr === toStr ? fromStr : `${fromStr} – ${toStr}`
+                      }).join(", ")}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

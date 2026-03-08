@@ -2,7 +2,7 @@
 
 import { db } from "@/db"
 import { leaves } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq, and, lte, gte } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/session"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
@@ -207,4 +207,26 @@ export async function adminDeleteLeave(id: string) {
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
   revalidatePath("/replacements")
+}
+
+/** Schválené obdobia voľna zamestnanca v danom období (pre zobrazenie pri tvorbe zmeny). */
+export async function getApprovedLeavesInRange(
+  userId: string,
+  dateFrom: string,
+  dateTo: string,
+): Promise<{ startDate: string; endDate: string; type: string }[]> {
+  await requireAdmin()
+  const orgId = await getOrganizationId()
+  return db
+    .select({ startDate: leaves.startDate, endDate: leaves.endDate, type: leaves.type })
+    .from(leaves)
+    .where(
+      and(
+        eq(leaves.organizationId, orgId),
+        eq(leaves.userId, userId),
+        eq(leaves.status, "approved"),
+        lte(leaves.startDate, dateTo),
+        gte(leaves.endDate, dateFrom),
+      ),
+    )
 }

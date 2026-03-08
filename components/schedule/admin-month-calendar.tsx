@@ -599,7 +599,7 @@ export function AdminMonthCalendar({
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-muted-foreground">
-                                Voľná zmena
+                                Neobsadená zmena
                                 {os.maxClaims > 1 && <span className="text-xs ml-1">({os.claims.length}/{os.maxClaims})</span>}
                                 {os.status === "draft" && <span className="text-xs ml-1 text-muted-foreground/70">· koncept</span>}
                               </div>
@@ -685,7 +685,7 @@ export function AdminMonthCalendar({
                     <div key={os.id} className={cn("rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background", os.status === "draft" && "opacity-70")}>
                       <div className="flex items-center justify-between gap-0.5">
                         <span className="truncate text-muted-foreground font-medium text-[10px]">
-                          Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
+                          Neobsadená {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                         </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -1076,7 +1076,7 @@ export function AdminMonthCalendar({
                                   </button>
                                 </div>
                                 <div className="font-medium text-muted-foreground leading-tight">
-                                  Voľná {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
+                                  Neobsadená {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                                 </div>
                                 <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (
