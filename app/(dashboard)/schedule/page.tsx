@@ -113,28 +113,86 @@ export default async function SchedulePage({
       .where(eq(businessHours.organizationId, orgId)),
 
     // Fetch published + open shift rules that overlap with visible range
-    db
-      .select()
-      .from(shiftRules)
-      .where(
-        and(
-          eq(shiftRules.organizationId, orgId),
-          or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
-          or(
-            and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
+    (async () => {
+      try {
+        return await db
+          .select()
+          .from(shiftRules)
+          .where(
             and(
-              or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
-              lte(shiftRules.validFrom, endDate),
-              gte(shiftRules.validUntil, startDate),
+              eq(shiftRules.organizationId, orgId),
+              or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
+              or(
+                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
+                and(
+                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
+                  lte(shiftRules.validFrom, endDate),
+                  gte(shiftRules.validUntil, startDate),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
+          )
+      } catch {
+        return await db
+          .select({
+            id: shiftRules.id,
+            organizationId: shiftRules.organizationId,
+            userId: shiftRules.userId,
+            frequency: shiftRules.frequency,
+            date: shiftRules.date,
+            days: shiftRules.days,
+            dayOfMonth: shiftRules.dayOfMonth,
+            validFrom: shiftRules.validFrom,
+            validUntil: shiftRules.validUntil,
+            startTime: shiftRules.startTime,
+            endTime: shiftRules.endTime,
+            allDay: shiftRules.allDay,
+            note: shiftRules.note,
+            status: shiftRules.status,
+            createdAt: shiftRules.createdAt,
+            updatedAt: shiftRules.updatedAt,
+          })
+          .from(shiftRules)
+          .where(
+            and(
+              eq(shiftRules.organizationId, orgId),
+              or(eq(shiftRules.status, "published"), eq(shiftRules.status, "open")),
+              or(
+                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
+                and(
+                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
+                  lte(shiftRules.validFrom, endDate),
+                  gte(shiftRules.validUntil, startDate),
+                ),
+              ),
+            ),
+          )
+          .then(rows => rows.map(r => ({ ...r, maxClaims: 1 })))
+      }
+    })(),
 
-    db
-      .select()
-      .from(shiftExceptions)
-      .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate))),
+    (async () => {
+      try {
+        return await db
+          .select()
+          .from(shiftExceptions)
+          .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate)))
+      } catch {
+        return await db
+          .select({
+            id: shiftExceptions.id,
+            ruleId: shiftExceptions.ruleId,
+            date: shiftExceptions.date,
+            action: shiftExceptions.action,
+            userId: shiftExceptions.userId,
+            startTime: shiftExceptions.startTime,
+            endTime: shiftExceptions.endTime,
+            note: shiftExceptions.note,
+          })
+          .from(shiftExceptions)
+          .where(and(gte(shiftExceptions.date, startDate), lte(shiftExceptions.date, endDate)))
+      }
+    })(),
   ])
 
   const onLeave = (userId: string, date: string) =>

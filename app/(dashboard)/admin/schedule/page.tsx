@@ -72,24 +72,50 @@ export default async function AdminSchedulePage({
       .where(eq(businessHours.organizationId, orgId)),
 
     // Fetch shift rules that could overlap with the visible range
-    db
-      .select()
-      .from(shiftRules)
-      .where(
-        and(
-          eq(shiftRules.organizationId, orgId),
-          or(
-            // once: date in range
-            and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
-            // recurring: validFrom <= endDate AND validUntil >= startDate (overlap)
+    (async () => {
+      try {
+        return await db
+          .select()
+          .from(shiftRules)
+          .where(
             and(
-              or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
-              lte(shiftRules.validFrom, endDate),
-              gte(shiftRules.validUntil, startDate),
+              eq(shiftRules.organizationId, orgId),
+              or(
+                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
+                and(
+                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
+                  lte(shiftRules.validFrom, endDate),
+                  gte(shiftRules.validUntil, startDate),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
+          )
+      } catch {
+        return await db
+          .select({
+            id: shiftRules.id, organizationId: shiftRules.organizationId, userId: shiftRules.userId,
+            frequency: shiftRules.frequency, date: shiftRules.date, days: shiftRules.days,
+            dayOfMonth: shiftRules.dayOfMonth, validFrom: shiftRules.validFrom, validUntil: shiftRules.validUntil,
+            startTime: shiftRules.startTime, endTime: shiftRules.endTime, allDay: shiftRules.allDay,
+            note: shiftRules.note, status: shiftRules.status, createdAt: shiftRules.createdAt, updatedAt: shiftRules.updatedAt,
+          })
+          .from(shiftRules)
+          .where(
+            and(
+              eq(shiftRules.organizationId, orgId),
+              or(
+                and(eq(shiftRules.frequency, "once"), gte(shiftRules.date, startDate), lte(shiftRules.date, endDate)),
+                and(
+                  or(eq(shiftRules.frequency, "weekly"), eq(shiftRules.frequency, "monthly")),
+                  lte(shiftRules.validFrom, endDate),
+                  gte(shiftRules.validUntil, startDate),
+                ),
+              ),
+            ),
+          )
+          .then(rows => rows.map(r => ({ ...r, maxClaims: 1 })))
+      }
+    })(),
 
     // Fetch exceptions for all rules in this org (filtered by date range)
     db
