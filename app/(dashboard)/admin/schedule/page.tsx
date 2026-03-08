@@ -53,7 +53,7 @@ export default async function AdminSchedulePage({
         status: openShiftClaims.status,
       })
       .from(openShiftClaims)
-      .where(and(eq(openShiftClaims.organizationId, orgId), eq(openShiftClaims.status, "pending"))),
+      .where(and(eq(openShiftClaims.organizationId, orgId), or(eq(openShiftClaims.status, "pending"), eq(openShiftClaims.status, "approved")))),
 
     db
       .select({
@@ -179,6 +179,9 @@ export default async function AdminSchedulePage({
 
   const ruleInstances = expandRules(ruleData, exData, startDate, endDate, bhMap)
 
+  // Track concrete open shifts consumed by rule instances to avoid duplicates
+  const consumedConcreteIds = new Set<string>()
+
   const calendarWeeks: AdminCalendarDay[][] = weeks.map((week) =>
     week.map((date) => {
       const dateStr = toDateStr(date)
@@ -241,30 +244,17 @@ export default async function AdminSchedulePage({
           }
         })
 
-      const dayOpenShifts: AdminOpenShift[] = [
-        // Legacy open shifts
-        ...monthShifts
-          .filter((s) => s.date === dateStr && s.status === "open")
-          .map((s) => {
-            const claimsForShift = pendingClaims.filter((c) => c.shiftId === s.id)
-            return {
-              id: s.id,
-              date: dateStr,
-              startTime: shortTime(s.startTime),
-              endTime: shortTime(s.endTime),
-              note: s.note,
-              isRule: false,
-              ruleId: null,
-              claims: claimsForShift.map((c) => {
-                const emp = colorMap.get(c.claimedByUserId)
-                return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
-              }),
-            }
-          }),
-        // Rule-based open shifts
-        ...ruleInstances
-          .filter((ri) => ri.date === dateStr && ri.status === "open")
-          .map((ri) => ({
+      // Rule-based open shifts — merge claims from concrete shifts
+      const ruleOpenShifts: AdminOpenShift[] = ruleInstances
+        .filter((ri) => ri.date === dateStr && ri.status === "open")
+        .map((ri) => {
+          // Find matching concrete open shift (created by claimRuleShift)
+          const concreteShift = monthShifts.find(
+            (s) => s.date === dateStr && s.status === "open" && shortTime(s.startTime) === ri.startTime && shortTime(s.endTime) === ri.endTime,
+          )
+          const claimsForShift = concreteShift ? pendingClaims.filter((c) => c.shiftId === concreteShift.id) : []
+          if (concreteShift) consumedConcreteIds.add(concreteShift.id)
+          return {
             id: `rule:${ri.ruleId}:${dateStr}`,
             date: dateStr,
             startTime: ri.startTime,
@@ -272,9 +262,34 @@ export default async function AdminSchedulePage({
             note: ri.note,
             isRule: true,
             ruleId: ri.ruleId,
-            claims: [] as { claimId: string; userId: string; userName: string; color: string }[],
-          })),
-      ]
+            claims: claimsForShift.map((c) => {
+              const emp = colorMap.get(c.claimedByUserId)
+              return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
+            }),
+          }
+        })
+
+      // Legacy open shifts — exclude those consumed by rule instances
+      const legacyOpenShifts: AdminOpenShift[] = monthShifts
+        .filter((s) => s.date === dateStr && s.status === "open" && !consumedConcreteIds.has(s.id))
+        .map((s) => {
+          const claimsForShift = pendingClaims.filter((c) => c.shiftId === s.id)
+          return {
+            id: s.id,
+            date: dateStr,
+            startTime: shortTime(s.startTime),
+            endTime: shortTime(s.endTime),
+            note: s.note,
+            isRule: false,
+            ruleId: null,
+            claims: claimsForShift.map((c) => {
+              const emp = colorMap.get(c.claimedByUserId)
+              return { claimId: c.id, userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280" }
+            }),
+          }
+        })
+
+      const dayOpenShifts = [...legacyOpenShifts, ...ruleOpenShifts]
 
       return {
         date: dateStr,

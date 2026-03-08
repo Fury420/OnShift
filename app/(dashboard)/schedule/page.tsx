@@ -219,9 +219,16 @@ export default async function SchedulePage({
       .map((e) => [e.id, e]),
   )
 
-  const myPendingClaimShiftIds = new Set(
-    pendingClaims.filter((c) => c.claimedByUserId === session.user.id && c.status === "pending").map((c) => c.shiftId),
-  )
+  // Build a set of concrete open shift IDs that were created for rule-based claims
+  // so we can merge their claim data into rule instances and avoid duplicates
+  const concreteShiftsByKey = new Map<string, typeof openMonthShifts[number]>()
+  for (const s of openMonthShifts) {
+    const key = `${s.date}:${shortTime(s.startTime)}:${shortTime(s.endTime)}`
+    concreteShiftsByKey.set(key, s)
+  }
+
+  // Track which concrete open shifts are consumed by rule instances
+  const consumedConcreteIds = new Set<string>()
 
   const calendarWeeks: CalendarDay[][] = weeks.map((week) =>
     week.map((date) => {
@@ -264,8 +271,49 @@ export default async function SchedulePage({
 
       const dayShifts = [...legacyShifts, ...ruleShifts]
 
+      // Rule-based open shifts — merge claim data from concrete shifts
+      const ruleOpenShifts: OpenShift[] = ruleInstances
+        .filter((ri) => ri.date === dateStr && (ri.status === "open" || (ri.status === "published" && !ri.userId)))
+        .map((ri) => {
+          const mc = ri.maxClaims ?? 1
+          // Find a matching concrete open shift (created by claimRuleShift)
+          const key = `${dateStr}:${ri.startTime}:${ri.endTime}`
+          const concreteShift = concreteShiftsByKey.get(key)
+          let acceptedCount = 0
+          let claimedByUsers: OpenShift["claimedByUsers"] = []
+          let myClaimId: string | null = null
+          let iMayClaim = true
+
+          if (concreteShift) {
+            consumedConcreteIds.add(concreteShift.id)
+            const allClaims = pendingClaims.filter((c) => c.shiftId === concreteShift.id)
+            const acceptedClaims = allClaims.filter((c) => c.status === "approved")
+            const myClaim = allClaims.find((c) => c.claimedByUserId === session.user.id)
+            acceptedCount = acceptedClaims.length
+            claimedByUsers = acceptedClaims.map((c) => {
+              const emp = colorMap.get(c.claimedByUserId)
+              return { userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280", claimId: c.id }
+            })
+            myClaimId = myClaim?.id ?? null
+            iMayClaim = !myClaim && acceptedCount < mc
+          }
+
+          return {
+            id: `rule:${ri.ruleId}:${dateStr}`,
+            startTime: ri.startTime,
+            endTime: ri.endTime,
+            note: ri.note,
+            maxClaims: mc,
+            acceptedCount,
+            claimedByUsers,
+            myClaimId,
+            iMayClaim,
+          }
+        })
+
+      // Legacy open shifts — exclude those consumed by rule instances
       const legacyOpenShifts: OpenShift[] = openMonthShifts
-        .filter((s) => s.date === dateStr)
+        .filter((s) => s.date === dateStr && !consumedConcreteIds.has(s.id))
         .map((s) => {
           const allClaims = pendingClaims.filter((c) => c.shiftId === s.id)
           const acceptedClaims = allClaims.filter((c) => c.status === "approved")
@@ -285,20 +333,6 @@ export default async function SchedulePage({
             iMayClaim: !myClaim,
           }
         })
-
-      const ruleOpenShifts: OpenShift[] = ruleInstances
-        .filter((ri) => ri.date === dateStr && (ri.status === "open" || (ri.status === "published" && !ri.userId)))
-        .map((ri) => ({
-          id: `rule:${ri.ruleId}:${dateStr}`,
-          startTime: ri.startTime,
-          endTime: ri.endTime,
-          note: ri.note,
-          maxClaims: ri.maxClaims ?? 1,
-          acceptedCount: 0,
-          claimedByUsers: [],
-          myClaimId: null,
-          iMayClaim: true,
-        }))
 
       const dayOpenShifts = [...legacyOpenShifts, ...ruleOpenShifts]
 
