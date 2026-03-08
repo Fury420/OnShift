@@ -84,6 +84,11 @@ interface ReplacementContext {
 
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
 const LEAVE_LABELS: Record<string, string> = { vacation: "Dovolenka", sick: "PN", personal: "Osobné voľno" }
+const LEAVE_VACATION_COLOR = "#dc2626"
+
+function leaveColor(l: { type: string; color: string }) {
+  return l.type === "vacation" ? LEAVE_VACATION_COLOR : l.color
+}
 const HOUR_HEIGHT = 56
 const VISIBLE_HOURS = 8
 
@@ -394,23 +399,26 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                   <p className="text-xs text-muted-foreground pl-10">Žiadne zmeny</p>
                 ) : (
                   <div className="flex flex-col gap-1.5 pl-10">
-                    {(day.leaves ?? []).map((l, i) => (
-                      <div
-                        key={`leave-${l.userId}-${i}`}
-                        className={cn("rounded-lg px-3 py-2 flex items-center gap-2", l.status === "pending" && "border border-dashed")}
-                        style={{
-                          backgroundColor: l.color + (l.status === "approved" ? "25" : "12"),
-                          borderColor: l.status === "pending" ? l.color + "60" : undefined,
-                          color: l.color,
-                        }}
-                      >
-                        <Palmtree className="size-4 shrink-0" />
-                        <div>
-                          <div className="text-sm font-semibold">{l.userName.split(" ")[0]}</div>
-                          <div className="text-xs opacity-75">{LEAVE_LABELS[l.type] ?? l.type}{l.status === "pending" ? " (čaká)" : ""}</div>
+                    {(day.leaves ?? []).map((l, i) => {
+                      const color = leaveColor(l)
+                      return (
+                        <div
+                          key={`leave-${l.userId}-${i}`}
+                          className={cn("rounded-lg px-3 py-2 flex items-center gap-2", l.status === "pending" && "border border-dashed")}
+                          style={{
+                            backgroundColor: color + (l.status === "approved" ? "25" : "12"),
+                            borderColor: l.status === "pending" ? color + "60" : undefined,
+                            color,
+                          }}
+                        >
+                          <Palmtree className="size-4 shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold">{l.userName}</div>
+                            <div className="text-xs opacity-75">{LEAVE_LABELS[l.type] ?? l.type}{l.status === "pending" ? " (čaká)" : ""}</div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                     {day.shifts.map((shift) => {
                       const clickable = shift.isCurrentUser && !isPast
                       return (
@@ -585,20 +593,23 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                         </div>
                       )
                     })}
-                    {(day.leaves ?? []).map((l, i) => (
-                      <div
-                        key={`leave-${l.userId}-${i}`}
-                        className={cn("rounded px-1.5 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate", l.status === "pending" && "border border-dashed")}
-                        style={{
-                          backgroundColor: l.color + (l.status === "approved" ? "25" : "12"),
-                          borderColor: l.status === "pending" ? l.color + "60" : undefined,
-                          color: l.color,
-                        }}
-                      >
-                        <Palmtree className="size-2.5 shrink-0" />
-                        <span className="truncate font-medium">{l.userName.split(" ")[0]}</span>
-                      </div>
-                    ))}
+                    {(day.leaves ?? []).map((l, i) => {
+                      const color = leaveColor(l)
+                      return (
+                        <div
+                          key={`leave-${l.userId}-${i}`}
+                          className={cn("rounded px-1.5 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate", l.status === "pending" && "border border-dashed")}
+                          style={{
+                            backgroundColor: color + (l.status === "approved" ? "25" : "12"),
+                            borderColor: l.status === "pending" ? color + "60" : undefined,
+                            color,
+                          }}
+                        >
+                          <Palmtree className="size-2.5 shrink-0" />
+                          <span className="truncate font-medium">{l.userName}</span>
+                        </div>
+                      )
+                    })}
                   </>
                 )
                 return (
@@ -708,21 +719,19 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                     <div key={day.date} className="border-l flex flex-col gap-0.5 py-0.5 px-0.5">
                       {(day.leaves ?? []).map((l) => {
                         const key = `${l.userId}-${l.startDate}-${l.endDate}`
-                        const entry = weekLeaves.get(key)
-                        // Only render label on first day of the leave in the visible week
-                        const isFirst = entry?.days[0] === day.date
+                        const color = leaveColor(l)
                         return (
                           <div
                             key={key}
                             className={cn("rounded px-1.5 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate", l.status === "pending" && "border border-dashed")}
                             style={{
-                              backgroundColor: l.color + (l.status === "approved" ? "25" : "12"),
-                              borderColor: l.status === "pending" ? l.color + "60" : undefined,
-                              color: l.color,
+                              backgroundColor: color + (l.status === "approved" ? "25" : "12"),
+                              borderColor: l.status === "pending" ? color + "60" : undefined,
+                              color,
                             }}
                           >
                             <Palmtree className="size-2.5 shrink-0" />
-                            {isFirst && <span className="truncate font-medium">{l.userName.split(" ")[0]}</span>}
+                            <span className="truncate font-medium">{l.userName}</span>
                           </div>
                         )
                       })}

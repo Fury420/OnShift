@@ -79,7 +79,7 @@ export default async function SchedulePage({
 
     // Employees
     db
-      .select({ id: user.id, name: user.name, color: user.color })
+      .select({ id: user.id, name: user.name, color: user.color, role: user.role })
       .from(user)
       .where(eq(user.organizationId, orgId))
       .orderBy(asc(user.name)),
@@ -193,7 +193,7 @@ export default async function SchedulePage({
       nextMonth={nextMonth}
       initialWeek={initialWeek}
       initialDate={initialDate}
-      allEmployees={employees.map((e) => ({ id: e.id, name: e.name }))}
+      allEmployees={employees.filter((e) => e.role !== "admin").map((e) => ({ id: e.id, name: e.name }))}
       businessHours={bhMap}
       currentUserId={session.user.id}
       canCreateShifts={isAdmin}

@@ -156,7 +156,7 @@ export default async function ZastupPage({
     db
       .select({ id: user.id, name: user.name })
       .from(user)
-      .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId)))
+      .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId), ne(user.role, "admin")))
       .orderBy(user.name),
 
     (async () => {

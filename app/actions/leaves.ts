@@ -127,7 +127,7 @@ export async function adminUpdateLeaveStatus(id: string, status: "approved" | "r
   const orgId = await getOrganizationId()
 
   const [leave] = await db
-    .select({ userId: leaves.userId })
+    .select({ userId: leaves.userId, startDate: leaves.startDate })
     .from(leaves)
     .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
     .limit(1)
@@ -138,13 +138,14 @@ export async function adminUpdateLeaveStatus(id: string, status: "approved" | "r
     .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
 
   if (leave) {
+    const linkUrl = leave.startDate ? `/schedule?month=${leave.startDate.slice(0, 7)}&date=${leave.startDate}` : "/leaves"
     createNotification({
       organizationId: orgId,
       actorId: session.user.id,
       recipientIds: [leave.userId],
       type: status === "approved" ? "leave_approved" : "leave_rejected",
       title: `Vaša žiadosť o voľno bola ${status === "approved" ? "schválená" : "zamietnutá"}`,
-      linkUrl: "/leaves",
+      linkUrl,
       referenceId: id,
     }).catch(console.error)
   }
@@ -164,7 +165,7 @@ export async function approveLeave(id: string, status: "approved" | "rejected") 
   const isAdmin = (session.user as { role?: string }).role === "admin"
 
   const [leave] = await db
-    .select({ id: leaves.id, userId: leaves.userId, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId })
+    .select({ id: leaves.id, userId: leaves.userId, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId, startDate: leaves.startDate })
     .from(leaves)
     .where(eq(leaves.id, id))
     .limit(1)
@@ -181,13 +182,14 @@ export async function approveLeave(id: string, status: "approved" | "rejected") 
     .set({ status, approvedBy: currentUserId, updatedAt: new Date() })
     .where(eq(leaves.id, id))
 
+  const linkUrl = leave.startDate ? `/schedule?month=${leave.startDate.slice(0, 7)}&date=${leave.startDate}` : "/leaves"
   createNotification({
     organizationId: orgId,
     actorId: currentUserId,
     recipientIds: [leave.userId],
     type: status === "approved" ? "leave_approved" : "leave_rejected",
     title: `Vaša žiadosť o voľno bola ${status === "approved" ? "schválená" : "zamietnutá"}`,
-    linkUrl: "/leaves",
+    linkUrl,
     referenceId: id,
   }).catch(console.error)
 

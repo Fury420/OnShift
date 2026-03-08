@@ -100,8 +100,8 @@ export function NotificationBell() {
           <span className="sr-only">Oznámenia</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-4 py-3">
+      <PopoverContent align="end" className="flex w-80 max-h-[85vh] flex-col p-0">
+        <div className="flex shrink-0 items-center justify-between px-4 py-3">
           <h4 className="text-sm font-semibold">Oznámenia</h4>
           {unreadCount > 0 && (
             <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs" onClick={handleMarkAllRead}>
@@ -110,8 +110,8 @@ export function NotificationBell() {
             </Button>
           )}
         </div>
-        <Separator />
-        <div className="max-h-[400px] overflow-y-auto">
+        <Separator className="shrink-0" />
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {loading && items.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Načítavam...</div>
           ) : items.length === 0 ? (
