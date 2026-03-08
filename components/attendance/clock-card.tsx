@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
+import Link from "next/link"
 import { LogIn, LogOut, Clock, CalendarClock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,8 @@ interface ClockCardProps {
   isActive: boolean
   clockInTime: string | null // ISO string
   scheduledShifts: { startTime: string; endTime: string }[]
+  /** Najbližšia zmena – zobrazená vpravo hore v bloku */
+  nextShift?: { dateLabel: string; start: string; end: string } | null
 }
 
 function formatElapsed(ms: number) {
@@ -20,7 +23,7 @@ function formatElapsed(ms: number) {
   return [h, m, sec].map((v) => String(v).padStart(2, "0")).join(":")
 }
 
-export function ClockCard({ isActive, clockInTime, scheduledShifts }: ClockCardProps) {
+export function ClockCard({ isActive, clockInTime, scheduledShifts, nextShift }: ClockCardProps) {
   const [elapsed, setElapsed] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -86,12 +89,25 @@ export function ClockCard({ isActive, clockInTime, scheduledShifts }: ClockCardP
             )}
           </div>
 
-          {isActive && elapsed && (
-            <div className="flex items-center gap-2">
-              <Clock className="size-4 text-green-500 shrink-0" />
-              <span className="text-2xl font-mono font-semibold tabular-nums">{elapsed}</span>
-            </div>
-          )}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            {nextShift && (
+              <Link
+                href="/schedule"
+                className="text-right text-xs text-muted-foreground hover:text-primary transition-colors"
+                title="Prejsť do kalendára"
+              >
+                <span className="font-medium text-foreground">Najbližšia zmena</span>
+                <br />
+                <span className="capitalize">{nextShift.dateLabel} {nextShift.start}–{nextShift.end}</span>
+              </Link>
+            )}
+            {isActive && elapsed && (
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-green-500 shrink-0" />
+                <span className="text-2xl font-mono font-semibold tabular-nums">{elapsed}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <Button

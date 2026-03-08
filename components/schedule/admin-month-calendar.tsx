@@ -63,6 +63,8 @@ interface AdminMonthCalendarProps {
   prevMonth: string
   nextMonth: string
   initialWeek?: "first" | "last"
+  initialDate?: string
+  schedulePath?: string
   businessHours?: Map<string, BusinessHoursEntry>
 }
 
@@ -127,11 +129,17 @@ export function AdminMonthCalendar({
   prevMonth,
   nextMonth,
   initialWeek,
+  initialDate,
+  schedulePath = "/admin/schedule",
   businessHours,
 }: AdminMonthCalendarProps) {
   const router = useRouter()
   const [view, setView] = useState<"month" | "week">("week")
   const [weekIdx, setWeekIdx] = useState(() => {
+    if (initialDate) {
+      const idx = weeks.findIndex((w) => w.some((d) => d.date === initialDate))
+      if (idx >= 0) return idx
+    }
     if (initialWeek === "last") return Math.max(0, weeks.length - 1)
     if (initialWeek === "first") return 0
     const today = new Date().toISOString().slice(0, 10)
@@ -305,9 +313,13 @@ export function AdminMonthCalendar({
   }, [getMinutesFromY, startDrag, weeks, startTransition])
 
   useEffect(() => {
-    if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
+    if (initialDate) {
+      const idx = weeks.findIndex((w) => w.some((d) => d.date === initialDate))
+      if (idx >= 0) setWeekIdx(idx)
+      setView("week")
+    } else if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
     else if (initialWeek === "first") setWeekIdx(0)
-  }, [initialWeek, weeks.length])
+  }, [initialDate, initialWeek, weeks.length, weeks])
 
   useEffect(() => {
     if (view !== "week") return
@@ -699,18 +711,20 @@ export function AdminMonthCalendar({
                     )}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <div
+                      <Link
+                        href={`${schedulePath}?month=${day.date.slice(0, 7)}&date=${day.date}`}
                         className={cn(
-                          "text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full",
+                          "text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/30 transition-shadow",
                           day.isToday
                             ? "bg-primary text-primary-foreground"
                             : day.isCurrentMonth
                             ? "text-foreground"
                             : "text-muted-foreground",
                         )}
+                        title={`Prejsť na ${day.date}`}
                       >
                         {dayNum}
-                      </div>
+                      </Link>
                       <button
                         onClick={() => openCreate(day.date)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"

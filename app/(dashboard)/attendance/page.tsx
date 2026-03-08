@@ -4,8 +4,6 @@ import { db } from "@/db"
 import { attendance, shifts, user } from "@/db/schema"
 import { getSession } from "@/lib/session"
 import { eq, and, isNull, gte, lt, asc } from "drizzle-orm"
-import Link from "next/link"
-import { CalendarClock } from "lucide-react"
 import { ClockCard } from "@/components/attendance/clock-card"
 import { AttendanceTable } from "@/components/attendance/attendance-table"
 
@@ -173,28 +171,11 @@ export default async function AttendancePage({
     <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
       <h1 className="text-2xl font-semibold">Dochádzka</h1>
 
-      {nextShiftLabel && (
-        <div className="rounded-lg border bg-muted/30 px-4 py-3 flex items-center gap-3">
-          <CalendarClock className="size-5 text-muted-foreground shrink-0" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Najbližšia zmena</p>
-            <p className="text-sm text-muted-foreground capitalize">
-              {nextShiftLabel.dateLabel} {nextShiftLabel.start}–{nextShiftLabel.end}
-            </p>
-          </div>
-          <Link
-            href="/schedule"
-            className="text-sm font-medium text-primary hover:underline shrink-0"
-          >
-            Kalendár
-          </Link>
-        </div>
-      )}
-
       <ClockCard
         isActive={!!openRecord}
         clockInTime={openRecord?.clockIn.toISOString() ?? null}
         scheduledShifts={todayShifts}
+        nextShift={nextShiftLabel}
       />
 
       <AttendanceTable

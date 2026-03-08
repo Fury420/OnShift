@@ -58,6 +58,8 @@ interface MonthCalendarProps {
   prevMonth: string
   nextMonth: string
   initialWeek?: "first" | "last"
+  initialDate?: string
+  schedulePath?: string
   allEmployees: ColleagueOption[]
   businessHours?: Map<string, BusinessHoursEntry>
   currentUserId?: string
@@ -110,10 +112,14 @@ interface DragPreview {
   bottomMinutes: number
 }
 
-export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initialWeek, allEmployees, businessHours, currentUserId, canCreateShifts }: MonthCalendarProps) {
+export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initialWeek, initialDate, schedulePath = "/schedule", allEmployees, businessHours, currentUserId, canCreateShifts }: MonthCalendarProps) {
   const router = useRouter()
-  const [view, setView] = useState<"month" | "week">("week")
+  const [view, setView] = useState<"month" | "week">(initialDate ? "week" : "week")
   const [weekIdx, setWeekIdx] = useState(() => {
+    if (initialDate) {
+      const idx = weeks.findIndex((w) => w.some((d) => d.date === initialDate))
+      if (idx >= 0) return idx
+    }
     if (initialWeek === "last") return Math.max(0, weeks.length - 1)
     if (initialWeek === "first") return 0
     const today = new Date().toISOString().slice(0, 10)
@@ -192,9 +198,13 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
   }, [getMinutesFromY, canCreateShifts])
 
   useEffect(() => {
-    if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
+    if (initialDate) {
+      const idx = weeks.findIndex((w) => w.some((d) => d.date === initialDate))
+      if (idx >= 0) setWeekIdx(idx)
+      setView("week")
+    } else if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
     else if (initialWeek === "first") setWeekIdx(0)
-  }, [initialWeek, weeks.length])
+  }, [initialDate, initialWeek, weeks.length, weeks])
 
   useEffect(() => {
     if (view !== "week") return
@@ -551,9 +561,13 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                 return (
                   <div key={day.date} className={cn("min-h-20 p-1 border-r last:border-r-0", !day.isCurrentMonth && "bg-muted/20", day.isToday && "bg-primary/5")}>
                     <div className="flex items-center justify-between mb-1 group/day">
-                      <div className={cn("text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full", day.isToday ? "bg-primary text-primary-foreground" : day.isCurrentMonth ? "text-foreground" : "text-muted-foreground")}>
+                      <Link
+                        href={`${schedulePath}?month=${day.date.slice(0, 7)}&date=${day.date}`}
+                        className={cn("text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/30 transition-shadow", day.isToday ? "bg-primary text-primary-foreground" : day.isCurrentMonth ? "text-foreground" : "text-muted-foreground")}
+                        title={`Prejsť na ${day.date}`}
+                      >
                         {dayNum}
-                      </div>
+                      </Link>
                       {!isPast && day.isCurrentMonth && canCreateShifts && (
                         <button
                           onClick={() => openCreateDialog(day.date)}
