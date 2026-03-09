@@ -99,6 +99,13 @@
       "when": 1773013352416,
       "tag": "0013_curly_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1773084108805,
+      "tag": "0014_cold_kid_colt",
+      "breakpoints": true
     }
   ]
 }
