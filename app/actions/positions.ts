@@ -17,20 +17,21 @@ export async function getPositions() {
     .orderBy(asc(positions.sortOrder), asc(positions.name))
 }
 
-export async function createPosition(name: string, color?: string) {
+export async function createPosition(name: string) {
   await requireAdmin()
   const orgId = await getOrganizationId()
 
   const [pos] = await db
     .insert(positions)
-    .values({ organizationId: orgId, name, color: color ?? null })
+    .values({ organizationId: orgId, name })
     .returning()
 
   revalidatePath("/admin/employees")
+  revalidatePath("/admin/positions")
   return pos
 }
 
-export async function updatePosition(id: string, data: { name?: string; color?: string | null }) {
+export async function updatePosition(id: string, data: { name?: string }) {
   await requireAdmin()
   const orgId = await getOrganizationId()
 
@@ -40,6 +41,7 @@ export async function updatePosition(id: string, data: { name?: string; color?: 
     .where(and(eq(positions.id, id), eq(positions.organizationId, orgId)))
 
   revalidatePath("/admin/employees")
+  revalidatePath("/admin/positions")
 }
 
 export async function deletePosition(id: string) {
@@ -49,6 +51,7 @@ export async function deletePosition(id: string) {
   await db.delete(positions).where(and(eq(positions.id, id), eq(positions.organizationId, orgId)))
 
   revalidatePath("/admin/employees")
+  revalidatePath("/admin/positions")
 }
 
 export async function reorderPositions(orderedIds: string[]) {
@@ -65,4 +68,5 @@ export async function reorderPositions(orderedIds: string[]) {
   )
 
   revalidatePath("/admin/employees")
+  revalidatePath("/admin/positions")
 }

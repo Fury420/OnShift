@@ -24,7 +24,6 @@ import { createEmployee, updateEmployee } from "@/app/actions/employees"
 export interface PositionOption {
   id: string
   name: string
-  color: string | null
 }
 
 export interface EmployeeForEdit {

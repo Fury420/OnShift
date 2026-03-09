@@ -10,31 +10,23 @@ import { createPosition, updatePosition, deletePosition } from "@/app/actions/po
 interface Position {
   id: string
   name: string
-  color: string | null
 }
 
 interface PositionsManagerProps {
   positions: Position[]
 }
 
-const PRESET_COLORS = [
-  "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
-  "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
-]
-
 export function PositionsManager({ positions }: PositionsManagerProps) {
   const [newName, setNewName] = useState("")
-  const [newColor, setNewColor] = useState(PRESET_COLORS[0])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
-  const [editColor, setEditColor] = useState("")
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!newName.trim()) return
     startTransition(async () => {
-      await createPosition(newName.trim(), newColor)
+      await createPosition(newName.trim())
       setNewName("")
     })
   }
@@ -42,13 +34,12 @@ export function PositionsManager({ positions }: PositionsManagerProps) {
   function startEdit(pos: Position) {
     setEditingId(pos.id)
     setEditName(pos.name)
-    setEditColor(pos.color ?? PRESET_COLORS[0])
   }
 
   function handleUpdate() {
     if (!editingId || !editName.trim()) return
     startTransition(async () => {
-      await updatePosition(editingId, { name: editName.trim(), color: editColor })
+      await updatePosition(editingId, { name: editName.trim() })
       setEditingId(null)
     })
   }
@@ -68,10 +59,6 @@ export function PositionsManager({ positions }: PositionsManagerProps) {
           <div key={pos.id} className="flex items-center gap-3 px-4 py-3">
             {editingId === pos.id ? (
               <>
-                <div
-                  className="size-5 rounded-full shrink-0"
-                  style={{ backgroundColor: editColor }}
-                />
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
@@ -79,17 +66,6 @@ export function PositionsManager({ positions }: PositionsManagerProps) {
                   autoFocus
                   onKeyDown={(e) => { if (e.key === "Enter") handleUpdate(); if (e.key === "Escape") setEditingId(null) }}
                 />
-                <div className="flex gap-1">
-                  {PRESET_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setEditColor(c)}
-                      className={`size-5 rounded-full transition-transform ${editColor === c ? "ring-2 ring-offset-1 ring-foreground scale-110" : ""}`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
                 <Button variant="ghost" size="icon" className="size-8" onClick={handleUpdate} disabled={isPending}>
                   <Check className="size-4" />
                 </Button>
@@ -99,10 +75,6 @@ export function PositionsManager({ positions }: PositionsManagerProps) {
               </>
             ) : (
               <>
-                <div
-                  className="size-5 rounded-full shrink-0"
-                  style={{ backgroundColor: pos.color ?? "#6b7280" }}
-                />
                 <span className="flex-1 font-medium">{pos.name}</span>
                 <Button variant="ghost" size="icon" className="size-8" onClick={() => startEdit(pos)}>
                   <Pencil className="size-3.5" />
@@ -136,17 +108,6 @@ export function PositionsManager({ positions }: PositionsManagerProps) {
             onChange={(e) => setNewName(e.target.value)}
             placeholder="napr. Barman, Čašník, Kuchár…"
           />
-        </div>
-        <div className="flex items-center gap-1.5 pb-0.5">
-          {PRESET_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setNewColor(c)}
-              className={`size-6 rounded-full transition-transform ${newColor === c ? "ring-2 ring-offset-1 ring-foreground scale-110" : ""}`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
         </div>
         <Button type="submit" disabled={isPending || !newName.trim()}>
           <Plus className="size-4" />

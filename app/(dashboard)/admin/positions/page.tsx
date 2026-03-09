@@ -22,7 +22,6 @@ export default async function AdminPositionsPage() {
         positions={orgPositions.map((p) => ({
           id: p.id,
           name: p.name,
-          color: p.color,
         }))}
       />
     </div>

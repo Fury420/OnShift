@@ -28,7 +28,7 @@ export default async function AdminEmployeesPage() {
       .orderBy(asc(user.createdAt)),
 
     db
-      .select({ id: positions.id, name: positions.name, color: positions.color })
+      .select({ id: positions.id, name: positions.name })
       .from(positions)
       .where(eq(positions.organizationId, orgId))
       .orderBy(asc(positions.sortOrder), asc(positions.name)),

@@ -25,6 +25,7 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   ico: text("ico"),
   dic: text("dic"),
+  icDph: text("ic_dph"),
   address: text("address"),
   phone: text("phone"),
   email: text("email"),
@@ -141,7 +142,6 @@ export const positions = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    color: text("color"),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

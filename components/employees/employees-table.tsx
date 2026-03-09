@@ -37,7 +37,6 @@ import { archiveEmployee, unarchiveEmployee, deleteEmployee } from "@/app/action
 export interface PositionOption {
   id: string
   name: string
-  color: string | null
 }
 
 export interface Employee {

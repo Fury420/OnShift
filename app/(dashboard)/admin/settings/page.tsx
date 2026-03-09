@@ -1,10 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { businessHours } from "@/db/schema"
+import { businessHours, organizations } from "@/db/schema"
 import { eq } from "drizzle-orm"
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { BusinessHoursForm } from "@/components/settings/business-hours-form"
+import { OrganizationForm } from "@/components/settings/organization-form"
+import { Separator } from "@/components/ui/separator"
 
 const DAYS = [
   { value: "1", label: "Pondelok" },
@@ -17,15 +19,31 @@ const DAYS = [
 ]
 
 export default async function AdminSettingsPage() {
-  const session = await requireAdmin()
-  const orgId = (session.user as { organizationId?: string | null }).organizationId!
+  await requireAdmin()
+  const orgId = await getOrganizationId()
 
-  const rows = await db
-    .select()
-    .from(businessHours)
-    .where(eq(businessHours.organizationId, orgId))
+  const [orgRows, hoursRows] = await Promise.all([
+    db
+      .select({
+        name: organizations.name,
+        ico: organizations.ico,
+        dic: organizations.dic,
+        icDph: organizations.icDph,
+        address: organizations.address,
+        phone: organizations.phone,
+        email: organizations.email,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1),
+    db
+      .select()
+      .from(businessHours)
+      .where(eq(businessHours.organizationId, orgId)),
+  ])
 
-  const hoursMap = new Map(rows.map((r) => [r.dayOfWeek, r]))
+  const org = orgRows[0]!
+  const hoursMap = new Map(hoursRows.map((r) => [r.dayOfWeek, r]))
 
   const initialData = DAYS.map((d) => {
     const row = hoursMap.get(d.value)
@@ -39,12 +57,28 @@ export default async function AdminSettingsPage() {
   })
 
   return (
-    <div className="flex flex-col gap-6 max-w-2xl mx-auto w-full">
+    <div className="flex flex-col gap-8 max-w-2xl mx-auto w-full">
       <div>
         <h1 className="text-2xl font-semibold">Nastavenia</h1>
-        <p className="text-sm text-muted-foreground mt-1">Otváracie hodiny podniku</p>
       </div>
-      <BusinessHoursForm initialData={initialData} />
+
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Údaje firmy</h2>
+          <p className="text-sm text-muted-foreground">Fakturačné a kontaktné údaje</p>
+        </div>
+        <OrganizationForm org={org} />
+      </section>
+
+      <Separator />
+
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Otváracie hodiny</h2>
+          <p className="text-sm text-muted-foreground">Otváracie hodiny podniku</p>
+        </div>
+        <BusinessHoursForm initialData={initialData} />
+      </section>
     </div>
   )
 }
