@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { db } from "@/db"
 import { businessHours, organizations } from "@/db/schema"
 import { eq } from "drizzle-orm"
+import { notFound } from "next/navigation"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { BusinessHoursForm } from "@/components/settings/business-hours-form"
 import { OrganizationForm } from "@/components/settings/organization-form"
@@ -42,7 +43,8 @@ export default async function AdminSettingsPage() {
       .where(eq(businessHours.organizationId, orgId)),
   ])
 
-  const org = orgRows[0]!
+  const org = orgRows[0]
+  if (!org) notFound()
   const hoursMap = new Map(hoursRows.map((r) => [r.dayOfWeek, r]))
 
   const initialData = DAYS.map((d) => {
