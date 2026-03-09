@@ -88,7 +88,7 @@ const LEAVE_LABELS: Record<string, string> = { vacation: "Dovolenka", sick: "PN"
 
 /** Outlook-štýl banner pre voľno — solid farebný pruh */
 const LEAVE_STYLES = {
-  approved: "bg-purple-600 dark:bg-purple-700 text-white",
+  approved: "bg-red-600 dark:bg-red-700 text-white",
   pending: "bg-amber-500 dark:bg-amber-600 text-white",
 } as const
 const HOUR_HEIGHT = 56
