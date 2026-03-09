@@ -63,6 +63,11 @@ export default async function ZastupPage({
   const replacement = alias(user, "replacement")
 
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ })
+  const currentYear = now.getFullYear()
+  const currentMonthNum = now.getMonth() + 1
+  const currentMonthStart = `${currentYear}-${pad(currentMonthNum)}-01`
+  const currentMonthEndDate = new Date(currentYear, currentMonthNum, 1)
+  const currentMonthEnd = `${currentMonthEndDate.getFullYear()}-${pad(currentMonthEndDate.getMonth() + 1)}-01`
 
   const [myRequests, incomingRequests, allPendingRequests, leavesData, assignedShiftsRaw, claimedOpenShiftsRaw, colleaguesRaw, ...rest] = await Promise.all([
     db
@@ -242,7 +247,9 @@ export default async function ZastupPage({
       return true
     })
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
-  const myShifts = deduped.map((s) => {
+  const myShifts = deduped
+    .filter((s) => s.date >= currentMonthStart && s.date < currentMonthEnd)
+    .map((s) => {
     const [y, m, d] = s.date.split("-").map(Number)
     const dateLabel = new Date(y, m - 1, d).toLocaleDateString("sk-SK", { weekday: "short", day: "numeric", month: "numeric" })
     return { id: s.id, label: `${dateLabel} ${shortTime(s.startTime)}–${shortTime(s.endTime)}` }

@@ -75,7 +75,7 @@ export function RequestTabs({
                 {isAdmin ? "Žiadosti o voľno na schválenie" : "Moje žiadosti o voľno"}
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => setLeaveDialogOpen(true)}>
-                <Palmtree className="size-4" />
+                <Plus className="size-4" />
                 Žiadosť o dovolenku
               </Button>
             </CardHeader>
@@ -114,16 +114,19 @@ export function RequestTabs({
             {!isAdmin && myShifts.length > 0 && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
-                  <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                  <div>
+                    <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Aktuálny mesiac</p>
+                  </div>
                   <Button size="sm" variant="outline" onClick={() => setReplacementDialogOpen(true)}>
                     <Plus className="size-4" />
                     Požiadať o zastup
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border divide-y">
+                  <div className="max-h-[280px] overflow-y-auto rounded-md border divide-y">
                     {myShifts.map((s) => (
-                      <div key={s.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                      <div key={s.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
                         <span>{s.label}</span>
                       </div>
                     ))}
@@ -135,14 +138,17 @@ export function RequestTabs({
             {!isAdmin && myShifts.length === 0 && (
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
-                  <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                  <div>
+                    <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">Aktuálny mesiac</p>
+                  </div>
                   <Button size="sm" variant="outline" disabled>
                     <Plus className="size-4" />
                     Požiadať o zastup
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <p className="py-6 text-center text-muted-foreground text-sm">Žiadne nadchádzajúce zmeny.</p>
+                  <p className="py-6 text-center text-muted-foreground text-sm">V tomto mesiaci nemáte naplánované žiadne zmeny.</p>
                 </CardContent>
               </Card>
             )}
