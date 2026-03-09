@@ -21,18 +21,26 @@ import {
 } from "@/components/ui/select"
 import { createEmployee, updateEmployee } from "@/app/actions/employees"
 
+export interface PositionOption {
+  id: string
+  name: string
+  color: string | null
+}
+
 export interface EmployeeForEdit {
   id: string
   name: string
   role: "superadmin" | "admin" | "employee"
   color: string
   hourlyRate: number | null
+  positionId: string | null
 }
 
 interface EmployeeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   employee?: EmployeeForEdit
+  positions?: PositionOption[]
 }
 
 const PRESET_COLORS = [
@@ -46,7 +54,7 @@ const PRESET_COLORS = [
   "#f97316", // orange
 ]
 
-export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogProps) {
+export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }: EmployeeDialogProps) {
   const isEdit = !!employee
 
   const [name, setName] = useState("")
@@ -54,6 +62,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
   const [password, setPassword] = useState("")
   const [role, setRole] = useState<"admin" | "employee">("employee")
   const [color, setColor] = useState(PRESET_COLORS[0])
+  const [positionId, setPositionId] = useState("")
   const [hourlyRate, setHourlyRate] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -65,6 +74,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
       setPassword("")
       setRole((employee?.role === "admin" ? "admin" : "employee") as "admin" | "employee")
       setColor(employee?.color || PRESET_COLORS[0])
+      setPositionId(employee?.positionId ?? "")
       setHourlyRate(employee?.hourlyRate != null ? String(employee.hourlyRate) : "")
       setError("")
     }
@@ -79,9 +89,9 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
     startTransition(async () => {
       try {
         if (isEdit) {
-          await updateEmployee(employee.id, { name, role, color, hourlyRate: parsedRate })
+          await updateEmployee(employee.id, { name, role, color, hourlyRate: parsedRate, positionId: positionId || null })
         } else {
-          await createEmployee({ name, email, password, role, color, hourlyRate: parsedRate })
+          await createEmployee({ name, email, password, role, color, hourlyRate: parsedRate, positionId: positionId || null })
         }
         onOpenChange(false)
       } catch (err) {
@@ -152,6 +162,23 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
               </SelectContent>
             </Select>
           </div>
+
+          {positions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="position">Pozícia</Label>
+              <Select value={positionId || "none"} onValueChange={(v) => setPositionId(v === "none" ? "" : v)}>
+                <SelectTrigger id="position">
+                  <SelectValue placeholder="Bez pozície" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Bez pozície</SelectItem>
+                  {positions.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label>Farba v kalendári</Label>

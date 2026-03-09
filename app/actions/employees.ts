@@ -14,6 +14,7 @@ export async function createEmployee(data: {
   role: "admin" | "employee"
   color: string
   hourlyRate?: number | null
+  positionId?: string | null
 }) {
   await requireAdmin()
   const orgId = await getOrganizationId()
@@ -35,6 +36,7 @@ export async function createEmployee(data: {
       color: data.color || null,
       mustChangePassword: true,
       hourlyRate: data.hourlyRate != null ? String(data.hourlyRate) : null,
+      positionId: data.positionId || null,
     })
     .where(eq(user.email, data.email))
 
@@ -48,7 +50,7 @@ export async function createEmployee(data: {
 
 export async function updateEmployee(
   id: string,
-  data: { name: string; role: "admin" | "employee"; color: string; hourlyRate?: number | null },
+  data: { name: string; role: "admin" | "employee"; color: string; hourlyRate?: number | null; positionId?: string | null },
 ) {
   await requireAdmin()
   const orgId = await getOrganizationId()
@@ -60,6 +62,7 @@ export async function updateEmployee(
       role: data.role,
       color: data.color || null,
       hourlyRate: data.hourlyRate != null ? String(data.hourlyRate) : null,
+      positionId: data.positionId || null,
       updatedAt: new Date(),
     })
     .where(and(eq(user.id, id), eq(user.organizationId, orgId)))

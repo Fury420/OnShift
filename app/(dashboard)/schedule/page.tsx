@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shifts, user, leaves, openShiftClaims, businessHours } from "@/db/schema"
+import { shifts, user, leaves, openShiftClaims, businessHours, positions } from "@/db/schema"
 import { eq, and, gte, lte, asc, or } from "drizzle-orm"
 import { getSession } from "@/lib/session"
 import { getOrganizationId } from "@/lib/auth-guard"
@@ -30,7 +30,7 @@ export default async function SchedulePage({
   const endDate = toDateStr(weeks[weeks.length - 1][6])
   const todayStr = toDateStr(new Date())
 
-  const [monthShifts, openMonthShifts, approvedClaims, employees, approvedLeaves, orgBusinessHours] = await Promise.all([
+  const [monthShifts, openMonthShifts, approvedClaims, employees, approvedLeaves, orgBusinessHours, orgPositions] = await Promise.all([
     // Published shifts (assigned to employees)
     db
       .select({
@@ -61,6 +61,7 @@ export default async function SchedulePage({
         endTime: shifts.endTime,
         note: shifts.note,
         maxClaims: shifts.maxClaims,
+        positionId: shifts.positionId,
       })
       .from(shifts)
       .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, startDate), lte(shifts.date, endDate)))
@@ -79,7 +80,7 @@ export default async function SchedulePage({
 
     // Employees
     db
-      .select({ id: user.id, name: user.name, color: user.color, role: user.role })
+      .select({ id: user.id, name: user.name, color: user.color, role: user.role, positionId: user.positionId })
       .from(user)
       .where(eq(user.organizationId, orgId))
       .orderBy(asc(user.name)),
@@ -95,6 +96,12 @@ export default async function SchedulePage({
       .select()
       .from(businessHours)
       .where(eq(businessHours.organizationId, orgId)),
+
+    // Positions
+    db
+      .select({ id: positions.id, name: positions.name })
+      .from(positions)
+      .where(eq(positions.organizationId, orgId)),
   ])
 
   const onLeave = (userId: string, date: string) =>
@@ -103,6 +110,8 @@ export default async function SchedulePage({
   const colorMap = new Map(
     employees.map((e) => [e.id, { id: e.id, name: e.name, color: e.color ?? "#6b7280" }]),
   )
+  const posMap = new Map(orgPositions.map((p) => [p.id, p.name]))
+  const myPositionId = employees.find((e) => e.id === session.user.id)?.positionId ?? null
 
   const visibleShifts = monthShifts.filter((s) => !s.userId || !onLeave(s.userId, s.date))
 
@@ -132,8 +141,10 @@ export default async function SchedulePage({
         .map((s) => {
           const shiftClaims = approvedClaims.filter((c) => c.shiftId === s.id)
           const myClaim = shiftClaims.find((c) => c.claimedByUserId === session.user.id)
+          const positionMatch = !s.positionId || s.positionId === myPositionId
           return {
             id: s.id,
+            positionName: s.positionId ? posMap.get(s.positionId) ?? null : null,
             startTime: shortTime(s.startTime),
             endTime: shortTime(s.endTime),
             note: s.note,
@@ -144,7 +155,7 @@ export default async function SchedulePage({
               return { userId: c.claimedByUserId, userName: emp?.name ?? "—", color: emp?.color ?? "#6b7280", claimId: c.id }
             }),
             myClaimId: myClaim?.id ?? null,
-            iMayClaim: !myClaim && shiftClaims.length < s.maxClaims,
+            iMayClaim: !myClaim && shiftClaims.length < s.maxClaims && positionMatch,
           }
         })
 

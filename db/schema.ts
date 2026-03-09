@@ -82,6 +82,7 @@ export const user = pgTable("user", {
   color: text("color"), // hex color e.g. "#3b82f6"
   archivedAt: timestamp("archived_at"),
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  positionId: uuid("position_id").references(() => positions.id, { onDelete: "set null" }),
   hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }),
   defaultDays: text("default_days"), // comma-separated day numbers: 0=Sun,1=Mon,...,6=Sat
   defaultStartTime: time("default_start_time"),
@@ -130,6 +131,24 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at"),
 })
 
+// ─── Positions (pracovné pozície) ─────────────────────────────────────────────
+
+export const positions = pgTable(
+  "positions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    color: text("color"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [unique().on(t.organizationId, t.name)],
+)
+
 // ─── App tables ───────────────────────────────────────────────────────────────
 
 export const shifts = pgTable("shifts", {
@@ -139,6 +158,7 @@ export const shifts = pgTable("shifts", {
     .references(() => organizations.id, { onDelete: "cascade" }),
   userId: text("user_id")
     .references(() => user.id, { onDelete: "cascade" }),
+  positionId: uuid("position_id").references(() => positions.id, { onDelete: "set null" }),
   date: date("date").notNull(),
   startTime: time("start_time").notNull(),
   endTime: time("end_time").notNull(),
@@ -232,6 +252,7 @@ export const shiftRules = pgTable("shift_rules", {
     .references(() => organizations.id, { onDelete: "cascade" }),
   userId: text("user_id")
     .references(() => user.id, { onDelete: "cascade" }),
+  positionId: uuid("position_id").references(() => positions.id, { onDelete: "set null" }),
 
   frequency: shiftRuleFrequencyEnum("frequency").notNull(), // once | weekly | monthly
 

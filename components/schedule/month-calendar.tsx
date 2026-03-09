@@ -27,6 +27,7 @@ export interface CalendarShift {
 
 export interface OpenShift {
   id: string
+  positionName?: string | null
   startTime: string
   endTime: string
   note: string | null
@@ -476,7 +477,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                           onClick={canClaim ? () => handleClaim(os.id) : undefined}>
                           <div className="flex items-center justify-between">
                             <div className="text-sm font-medium text-muted-foreground">
-                              Neobsadená zmena
+                              {os.positionName ?? "Neobsadená zmena"}
                               {os.maxClaims > 1 && <span className="ml-1 text-xs opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </div>
                             {canClaim && <span className="text-xs font-medium text-primary">Prihlásiť sa</span>}
@@ -580,7 +581,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                           onClick={canClaimGrid ? () => handleClaim(os.id) : undefined}>
                           <div className="flex items-center justify-between gap-0.5">
                             <span className="truncate text-muted-foreground font-medium">
-                              Neobsadená
+                              {os.positionName ?? "Neobsadená"}
                               {os.maxClaims > 1 && <span className="ml-0.5 text-[10px] opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                             </span>
                             {os.myClaimId && <Check className="size-2.5 text-green-600 shrink-0" />}
@@ -850,7 +851,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
                               onClick={canClaimTl ? () => handleClaim(os.id) : undefined}
                             >
                               <div className="font-medium text-muted-foreground leading-tight">
-                                Neobsadená
+                                {os.positionName ?? "Neobsadená"}
                                 {os.maxClaims > 1 && <span className="ml-0.5 opacity-70">({os.acceptedCount}/{os.maxClaims})</span>}
                               </div>
                               <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>

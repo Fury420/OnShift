@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/db"
-import { shifts, openShiftClaims, leaves } from "@/db/schema"
+import { shifts, openShiftClaims, leaves, user } from "@/db/schema"
 import { eq, inArray, and, lt, gt, ne, isNotNull, isNull, lte, gte } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
@@ -57,6 +57,7 @@ async function checkLeaveOverlap(organizationId: string, userId: string, date: s
 
 export async function createShift(data: {
   userId: string | null
+  positionId?: string | null
   date: string
   startTime: string
   endTime: string
@@ -75,6 +76,7 @@ export async function createShift(data: {
   await db.insert(shifts).values({
     organizationId: orgId,
     userId: data.userId ?? null,
+    positionId: data.positionId ?? null,
     date: data.date,
     startTime: data.startTime,
     endTime: data.endTime,
@@ -90,6 +92,7 @@ export async function createShift(data: {
 
 export async function createShiftsBatch(data: {
   userId: string | null
+  positionId?: string | null
   dateFrom: string
   dateTo: string
   days: number[] // 0=Sun, 1=Mon, ..., 6=Sat
@@ -133,6 +136,7 @@ export async function createShiftsBatch(data: {
       await db.insert(shifts).values({
         organizationId: orgId,
         userId: data.userId ?? null,
+        positionId: data.positionId ?? null,
         date: dateStr,
         startTime: data.startTime,
         endTime: data.endTime,
@@ -153,7 +157,7 @@ export async function createShiftsBatch(data: {
 
 export async function updateShift(
   id: string,
-  data: { userId: string | null; date: string; startTime: string; endTime: string; note?: string; maxClaims?: number },
+  data: { userId: string | null; positionId?: string | null; date: string; startTime: string; endTime: string; note?: string; maxClaims?: number },
 ) {
   const session = await requireAdmin()
   const orgId = await getOrganizationId()
@@ -181,6 +185,7 @@ export async function updateShift(
     .update(shifts)
     .set({
       userId: data.userId ?? null,
+      positionId: data.positionId ?? null,
       date: data.date,
       startTime: data.startTime,
       endTime: data.endTime,
@@ -220,11 +225,17 @@ export async function claimShift(shiftId: string) {
 
   // Find the open shift
   const [shift] = await db
-    .select({ id: shifts.id, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims })
+    .select({ id: shifts.id, startTime: shifts.startTime, endTime: shifts.endTime, date: shifts.date, maxClaims: shifts.maxClaims, positionId: shifts.positionId })
     .from(shifts)
     .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
     .limit(1)
   if (!shift) throw new Error("Zmena nie je dostupná")
+
+  // Check position match
+  if (shift.positionId) {
+    const [emp] = await db.select({ positionId: user.positionId }).from(user).where(eq(user.id, userId)).limit(1)
+    if (emp?.positionId !== shift.positionId) throw new Error("Táto zmena vyžaduje inú pozíciu")
+  }
 
   // Check for time conflict
   await checkConflict(userId, shift.date, shift.startTime, shift.endTime)

@@ -65,6 +65,7 @@ export function AdminScheduleTable({
     setEditing({
       id: s.id,
       userId: s.userId,
+      positionId: null,
       date: s.date,
       startTime: s.startTime,
       endTime: s.endTime,

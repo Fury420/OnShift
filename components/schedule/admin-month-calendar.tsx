@@ -22,6 +22,8 @@ export interface AdminCalendarShift {
   id: string
   userId: string
   userName: string
+  positionId?: string | null
+  positionName?: string | null
   date: string
   startTime: string
   endTime: string
@@ -32,6 +34,8 @@ export interface AdminCalendarShift {
 
 export interface AdminOpenShift {
   id: string
+  positionId?: string | null
+  positionName?: string | null
   date: string
   startTime: string
   endTime: string
@@ -39,6 +43,11 @@ export interface AdminOpenShift {
   status: "draft" | "open"
   claims: { claimId: string; userId: string; userName: string; color: string }[]
   maxClaims: number
+}
+
+export interface PositionOption {
+  id: string
+  name: string
 }
 
 export interface AdminCalendarLeave {
@@ -70,6 +79,7 @@ export interface BusinessHoursEntry {
 interface AdminMonthCalendarProps {
   weeks: AdminCalendarDay[][]
   employees: EmployeeOption[]
+  positions?: PositionOption[]
   monthLabel: string
   prevMonth: string
   nextMonth: string
@@ -143,6 +153,7 @@ interface DragPreview {
 export function AdminMonthCalendar({
   weeks,
   employees,
+  positions = [],
   monthLabel,
   prevMonth,
   nextMonth,
@@ -396,6 +407,7 @@ export function AdminMonthCalendar({
     setEditing({
       id: s.id,
       userId: s.userId,
+      positionId: s.positionId ?? null,
       date: s.date,
       startTime: s.startTime,
       endTime: s.endTime,
@@ -410,6 +422,7 @@ export function AdminMonthCalendar({
     setEditing({
       id: os.id,
       userId: null,
+      positionId: os.positionId ?? null,
       date: os.date,
       startTime: os.startTime,
       endTime: os.endTime,
@@ -598,7 +611,7 @@ export function AdminMonthCalendar({
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-sm font-medium text-muted-foreground">
-                                Neobsadená zmena
+                                {os.positionName ?? "Neobsadená zmena"}
                                 {os.maxClaims > 1 && <span className="text-xs ml-1">({os.claims.length}/{os.maxClaims})</span>}
                                 {os.status === "draft" && <span className="text-xs ml-1 text-muted-foreground/70">· koncept</span>}
                               </div>
@@ -684,7 +697,7 @@ export function AdminMonthCalendar({
                     <div key={os.id} className={cn("rounded border border-dashed border-muted-foreground/40 px-1 py-0.5 text-xs leading-tight bg-background", os.status === "draft" && "opacity-70")}>
                       <div className="flex items-center justify-between gap-0.5">
                         <span className="truncate text-muted-foreground font-medium text-[10px]">
-                          Neobsadená {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
+                          {os.positionName ?? "Neobsadená"} {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                         </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -742,7 +755,7 @@ export function AdminMonthCalendar({
                           color: shift.color,
                         }}
                       >
-                        <div className="truncate font-semibold">{shift.userName.split(" ")[0]}</div>
+                        <div className="truncate font-semibold">{shift.userName.split(" ")[0]}{shift.positionName && <span className="font-normal opacity-60 ml-1">· {shift.positionName}</span>}</div>
                         <div className="opacity-80">{shift.startTime}–{shift.endTime}</div>
                       </button>
                     </DropdownMenuTrigger>
@@ -1028,6 +1041,7 @@ export function AdminMonthCalendar({
                                 </div>
 
                                 <div className="font-semibold truncate leading-tight pr-4">{shift.userName}</div>
+                                {shift.positionName && <div className="opacity-60 leading-tight text-xs truncate">{shift.positionName}</div>}
                                 <div className="opacity-80 leading-tight text-xs">
                                   {shift.startTime}–{shift.endTime}
                                   {shift.status === "draft" && " · koncept"}
@@ -1070,7 +1084,7 @@ export function AdminMonthCalendar({
                                   </button>
                                 </div>
                                 <div className="font-medium text-muted-foreground leading-tight">
-                                  Neobsadená {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
+                                  {os.positionName ?? "Neobsadená"} {os.maxClaims > 1 && `(${os.claims.length}/${os.maxClaims})`}{os.status === "draft" && " · koncept"}
                                 </div>
                                 <div className="text-muted-foreground/70 text-xs leading-tight">{os.startTime}–{os.endTime}</div>
                                 {os.claims.map((claim) => (
@@ -1148,6 +1162,7 @@ export function AdminMonthCalendar({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         employees={employees}
+        positions={positions}
         shift={editing}
         defaultDate={defaultDate}
         defaultStartTime={defaultStartTime}

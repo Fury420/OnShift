@@ -34,6 +34,12 @@ import {
 import { EmployeeDialog, type EmployeeForEdit } from "./employee-dialog"
 import { archiveEmployee, unarchiveEmployee, deleteEmployee } from "@/app/actions/employees"
 
+export interface PositionOption {
+  id: string
+  name: string
+  color: string | null
+}
+
 export interface Employee {
   id: string
   name: string
@@ -41,6 +47,8 @@ export interface Employee {
   role: "superadmin" | "admin" | "employee"
   color: string
   hourlyRate: number | null
+  positionId: string | null
+  positionName: string | null
   isArchived: boolean
   createdAt: string
 }
@@ -48,6 +56,7 @@ export interface Employee {
 interface EmployeesTableProps {
   employees: Employee[]
   currentUserId: string
+  positions: PositionOption[]
 }
 
 function initials(name: string) {
@@ -56,7 +65,7 @@ function initials(name: string) {
 
 type DialogType = "archive" | "delete" | null
 
-export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps) {
+export function EmployeesTable({ employees, currentUserId, positions }: EmployeesTableProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<EmployeeForEdit | undefined>()
   const [confirmTarget, setConfirmTarget] = useState<{ emp: Employee; type: DialogType }>({ emp: null!, type: null })
@@ -69,7 +78,7 @@ export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps
   }
 
   function openEdit(emp: Employee) {
-    setEditing({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, hourlyRate: emp.hourlyRate })
+    setEditing({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, hourlyRate: emp.hourlyRate, positionId: emp.positionId })
     setDialogOpen(true)
   }
 
@@ -127,6 +136,7 @@ export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps
             <TableRow>
               <TableHead>Meno</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Pozícia</TableHead>
               <TableHead>Rola</TableHead>
               <TableHead>Sadzba</TableHead>
               <TableHead>Registrovaný</TableHead>
@@ -136,7 +146,7 @@ export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps
           <TableBody>
             {visible.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   {showArchived ? "Žiadni archivovaní zamestnanci" : "Žiadni zamestnanci"}
                 </TableCell>
               </TableRow>
@@ -157,6 +167,7 @@ export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{emp.email}</TableCell>
+                  <TableCell className="text-muted-foreground">{emp.positionName ?? "—"}</TableCell>
                   <TableCell>
                     {emp.role === "admin" ? (
                       <Badge variant="default" className="gap-1">
@@ -225,7 +236,7 @@ export function EmployeesTable({ employees, currentUserId }: EmployeesTableProps
         </Table>
       </div>
 
-      <EmployeeDialog open={dialogOpen} onOpenChange={setDialogOpen} employee={editing} />
+      <EmployeeDialog open={dialogOpen} onOpenChange={setDialogOpen} employee={editing} positions={positions} />
 
       <AlertDialog
         open={!!confirmTarget.type}

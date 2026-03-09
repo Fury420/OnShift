@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shifts, user, businessHours, openShiftClaims, leaves } from "@/db/schema"
+import { shifts, user, businessHours, openShiftClaims, leaves, positions } from "@/db/schema"
 import { eq, and, gte, lte, asc, or } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
 import { AdminMonthCalendar, type AdminCalendarDay, type AdminCalendarShift, type AdminOpenShift, type AdminCalendarLeave } from "@/components/schedule/admin-month-calendar"
@@ -24,12 +24,13 @@ export default async function AdminSchedulePage({
   const endDate = toDateStr(weeks[weeks.length - 1][6])
   const todayStr = toDateStr(new Date())
 
-  const [monthShifts, claims, employees, orgBusinessHours, allLeaves] = await Promise.all([
+  const [monthShifts, claims, employees, orgBusinessHours, allLeaves, orgPositions] = await Promise.all([
     // All shifts in date range (draft, open, published)
     db
       .select({
         id: shifts.id,
         userId: shifts.userId,
+        positionId: shifts.positionId,
         date: shifts.date,
         startTime: shifts.startTime,
         endTime: shifts.endTime,
@@ -58,6 +59,7 @@ export default async function AdminSchedulePage({
         id: user.id,
         name: user.name,
         color: user.color,
+        positionId: user.positionId,
         archivedAt: user.archivedAt,
       })
       .from(user)
@@ -75,10 +77,18 @@ export default async function AdminSchedulePage({
       .select({ userId: leaves.userId, startDate: leaves.startDate, endDate: leaves.endDate, type: leaves.type, status: leaves.status })
       .from(leaves)
       .where(and(eq(leaves.organizationId, orgId), or(eq(leaves.status, "approved"), eq(leaves.status, "pending")), lte(leaves.startDate, endDate), gte(leaves.endDate, startDate))),
+
+    // Positions
+    db
+      .select({ id: positions.id, name: positions.name })
+      .from(positions)
+      .where(eq(positions.organizationId, orgId))
+      .orderBy(asc(positions.sortOrder), asc(positions.name)),
   ])
 
   const colorMap = new Map(employees.map((e) => [e.id, { name: e.name, color: e.color ?? "#6b7280" }]))
   const bhMap = new Map(orgBusinessHours.map((r) => [r.dayOfWeek, r]))
+  const posMap = new Map(orgPositions.map((p) => [p.id, p.name]))
 
   const calendarWeeks: AdminCalendarDay[][] = weeks.map((week) =>
     week.map((date) => {
@@ -93,6 +103,8 @@ export default async function AdminSchedulePage({
             id: s.id,
             userId: s.userId ?? "",
             userName: emp?.name ?? "—",
+            positionId: s.positionId,
+            positionName: s.positionId ? posMap.get(s.positionId) ?? null : null,
             date: dateStr,
             startTime: shortTime(s.startTime),
             endTime: shortTime(s.endTime),
@@ -109,6 +121,8 @@ export default async function AdminSchedulePage({
           const shiftClaims = claims.filter((c) => c.shiftId === s.id)
           return {
             id: s.id,
+            positionId: s.positionId,
+            positionName: s.positionId ? posMap.get(s.positionId) ?? null : null,
             date: dateStr,
             startTime: shortTime(s.startTime),
             endTime: shortTime(s.endTime),
@@ -154,12 +168,13 @@ export default async function AdminSchedulePage({
     monthNum === 12 ? `${year + 1}-01` : `${year}-${String(monthNum + 1).padStart(2, "0")}`
 
   const activeEmployees = employees.filter((e) => !e.archivedAt)
-  const employeeOptions = activeEmployees.map((e) => ({ id: e.id, name: e.name }))
+  const employeeOptions = activeEmployees.map((e) => ({ id: e.id, name: e.name, positionId: e.positionId }))
 
   return (
     <AdminMonthCalendar
       weeks={calendarWeeks}
       employees={employeeOptions}
+      positions={orgPositions}
       monthLabel={formatMonthLabel(year, monthNum)}
       prevMonth={prevMonth}
       nextMonth={nextMonth}

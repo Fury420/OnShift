@@ -42,6 +42,7 @@ const DAY_LABELS = [
 export interface ShiftForEdit {
   id: string
   userId: string | null
+  positionId: string | null
   date: string
   startTime: string
   endTime: string
@@ -52,12 +53,19 @@ export interface ShiftForEdit {
 export interface EmployeeOption {
   id: string
   name: string
+  positionId?: string | null
+}
+
+export interface PositionOption {
+  id: string
+  name: string
 }
 
 interface ShiftDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   employees: EmployeeOption[]
+  positions?: PositionOption[]
   shift?: ShiftForEdit
   defaultDate?: string
   defaultStartTime?: string
@@ -72,7 +80,7 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId }: ShiftDialogProps) {
+export function ShiftDialog({ open, onOpenChange, employees, positions = [], shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId }: ShiftDialogProps) {
   const isEdit = !!shift
   const router = useRouter()
 
@@ -84,6 +92,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
   const [validUntil, setValidUntil] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
+  const [positionId, setPositionId] = useState("")
   const [maxClaims, setMaxClaims] = useState(1)
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -107,6 +116,15 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
     return () => { cancelled = true }
   }, [open, userId, periodFrom, periodTo])
 
+  // Auto-fill position when employee is selected
+  useEffect(() => {
+    if (!open || isEdit) return
+    if (userId && userId !== OPEN_SHIFT_VALUE) {
+      const emp = employees.find((e) => e.id === userId)
+      if (emp?.positionId) setPositionId(emp.positionId)
+    }
+  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (open) {
       if (shift) {
@@ -118,6 +136,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         setValidUntil("")
         setStartTime(shift.startTime?.slice(0, 5) ?? "16:00")
         setEndTime(shift.endTime?.slice(0, 5) ?? "21:00")
+        setPositionId(shift.positionId ?? "")
         setMaxClaims(shift.maxClaims ?? 1)
       } else {
         setUserId(fixedUserId ?? OPEN_SHIFT_VALUE)
@@ -128,6 +147,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         setValidUntil("")
         setStartTime(defaultStartTime ?? "16:00")
         setEndTime(defaultEndTime ?? "21:00")
+        setPositionId("")
         setMaxClaims(1)
       }
       setError("")
@@ -195,6 +215,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         if (isEdit) {
           await updateShift(shift.id, {
             userId: resolvedUserId,
+            positionId: positionId || null,
             date,
             startTime,
             endTime,
@@ -203,6 +224,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
         } else if (frequency === "once") {
           await createShift({
             userId: resolvedUserId,
+            positionId: positionId || null,
             date,
             startTime,
             endTime,
@@ -212,6 +234,7 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
           const days = selectedDays.length > 0 ? selectedDays : [0, 1, 2, 3, 4, 5, 6]
           await createShiftsBatch({
             userId: resolvedUserId,
+            positionId: positionId || null,
             dateFrom: validFrom,
             dateTo: validUntil,
             days,
@@ -365,6 +388,24 @@ export function ShiftDialog({ open, onOpenChange, employees, shift, defaultDate,
               />
             </div>
           </div>
+
+          {/* Position selector */}
+          {positions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Pozícia</Label>
+              <Select value={positionId || "none"} onValueChange={(v) => setPositionId(v === "none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Bez pozície" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Bez pozície</SelectItem>
+                  {positions.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Max claims — only for open shifts */}
           {isOpenShift && (
