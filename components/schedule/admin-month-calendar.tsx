@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Plus, Send, Palmtree } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -92,10 +92,10 @@ interface AdminMonthCalendarProps {
 const DAY_LABELS = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
 const LEAVE_LABELS: Record<string, string> = { vacation: "Dovolenka", sick: "PN", personal: "Osobné voľno" }
 
-/** Jednotný vzhľad voľna – nedostupná červená/ružová (iná ako farby zamestnancov) */
+/** Outlook-štýl banner pre voľno — solid farebný pruh */
 const LEAVE_STYLES = {
-  approved: "bg-rose-50 dark:bg-rose-950/50 border border-dashed border-rose-400/70 text-rose-800 dark:text-rose-200",
-  pending: "bg-amber-50 dark:bg-amber-950/40 border border-dashed border-amber-500/60 text-amber-800 dark:text-amber-200",
+  approved: "bg-purple-600 dark:bg-purple-700 text-white",
+  pending: "bg-amber-500 dark:bg-amber-600 text-white",
 } as const
 const HOUR_HEIGHT = 56
 const VISIBLE_HOURS = 8
@@ -526,18 +526,12 @@ export function AdminMonthCalendar({
                       <div
                         key={`leave-${l.userId}-${i}`}
                         className={cn(
-                          "rounded-lg px-3 py-2 flex items-center gap-2",
+                          "rounded px-3 py-1.5 text-sm font-medium truncate",
                           l.status === "approved" ? LEAVE_STYLES.approved : LEAVE_STYLES.pending,
                         )}
                       >
-                        <Palmtree className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold truncate">{l.userName}</div>
-                          <div className="text-xs opacity-90">
-                            {LEAVE_LABELS[l.type] ?? l.type}
-                            {l.status === "pending" && " · čaká na schválenie"}
-                          </div>
-                        </div>
+                        {l.userName} · {LEAVE_LABELS[l.type] ?? l.type}
+                        {l.status === "pending" && " · čaká"}
                       </div>
                     ))}
                   </div>
@@ -600,6 +594,7 @@ export function AdminMonthCalendar({
                             <div className="text-sm font-semibold" style={{ color: claim.color }}>
                               {claim.userName.split(" ")[0]}
                             </div>
+                            {os.positionName && <div className="text-xs opacity-60" style={{ color: claim.color }}>{os.positionName}</div>}
                             <div className="text-xs opacity-75" style={{ color: claim.color }}>
                               {os.startTime}–{os.endTime}
                             </div>
@@ -689,6 +684,7 @@ export function AdminMonthCalendar({
                         }}
                       >
                         <div className="truncate font-semibold">{claim.userName.split(" ")[0]}</div>
+                        {os.positionName && <div className="opacity-60 text-[10px] truncate">{os.positionName}</div>}
                         <div className="opacity-80">{os.startTime}–{os.endTime}</div>
                       </div>
                     ))
@@ -728,14 +724,11 @@ export function AdminMonthCalendar({
                   <div
                     key={`leave-${l.userId}-${i}`}
                     className={cn(
-                      "rounded px-1 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate",
+                      "rounded px-1 py-0.5 text-[10px] leading-tight font-medium truncate",
                       l.status === "approved" ? LEAVE_STYLES.approved : LEAVE_STYLES.pending,
                     )}
                   >
-                    <Palmtree className="size-2.5 shrink-0 text-rose-600 dark:text-rose-400" />
-                    <span className="truncate font-medium">{l.userName}</span>
-                    <span className="text-[9px] opacity-80 truncate">{LEAVE_LABELS[l.type] ?? l.type}</span>
-                    {l.status === "pending" && <span className="text-[9px] opacity-60">(čaká)</span>}
+                    {l.userName}{l.status === "pending" && " · čaká"}
                   </div>
                 ))
 
@@ -904,13 +897,11 @@ export function AdminMonthCalendar({
                             <div
                               key={key}
                               className={cn(
-                                "rounded px-1.5 py-0.5 text-[10px] leading-tight flex items-center gap-1 truncate",
+                                "rounded px-1.5 py-0.5 text-[10px] leading-tight font-medium truncate",
                                 l.status === "approved" ? LEAVE_STYLES.approved : LEAVE_STYLES.pending,
                               )}
                             >
-                              <Palmtree className="size-2.5 shrink-0 text-rose-600 dark:text-rose-400" />
-                              <span className="truncate font-medium">{l.userName}</span>
-                              {l.status === "pending" && <span className="text-[9px] opacity-60">(čaká)</span>}
+                              {l.userName}{l.status === "pending" && " · čaká"}
                             </div>
                           )
                         })}
@@ -1125,6 +1116,7 @@ export function AdminMonthCalendar({
                                   </button>
                                 </div>
                                 <div className="font-semibold truncate leading-tight pr-4">{fc.userName}</div>
+                                {fc.openShift.positionName && <div className="opacity-60 leading-tight text-xs truncate">{fc.openShift.positionName}</div>}
                                 <div className="opacity-80 leading-tight text-xs">{fc.startTime}–{fc.endTime}</div>
                               </div>
                             )
