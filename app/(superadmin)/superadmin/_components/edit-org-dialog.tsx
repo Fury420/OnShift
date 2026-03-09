@@ -13,6 +13,7 @@ interface OrgDetail {
   name: string
   ico: string | null
   dic: string | null
+  icDph: string | null
   address: string | null
   phone: string | null
   email: string | null
@@ -47,6 +48,7 @@ export function EditOrgDialog({ org, onClose }: Props) {
         name: fd.get("name") as string,
         ico: fd.get("ico") as string,
         dic: fd.get("dic") as string,
+        icDph: fd.get("icDph") as string,
         address: fd.get("address") as string,
         phone: fd.get("phone") as string,
         email: fd.get("email") as string,
@@ -78,7 +80,11 @@ export function EditOrgDialog({ org, onClose }: Props) {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="dic">DIČ</Label>
-              <Input id="dic" name="dic" defaultValue={org.dic ?? ""} placeholder="SK1234567890" />
+              <Input id="dic" name="dic" defaultValue={org.dic ?? ""} placeholder="2012345678" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="icDph">IČ DPH</Label>
+              <Input id="icDph" name="icDph" defaultValue={org.icDph ?? ""} placeholder="SK2012345678" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="address">Adresa</Label>

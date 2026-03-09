@@ -171,7 +171,7 @@ export async function deleteOrganization(id: string) {
 
 export async function updateOrganization(
   id: string,
-  data: { name: string; ico?: string; dic?: string; address?: string; phone?: string; email?: string; licenseType?: "free" | "basic" | "pro" },
+  data: { name: string; ico?: string; dic?: string; icDph?: string; address?: string; phone?: string; email?: string; licenseType?: "free" | "basic" | "pro" },
 ) {
   await requireSuperAdmin()
 
@@ -181,6 +181,7 @@ export async function updateOrganization(
       name: data.name,
       ico: data.ico || null,
       dic: data.dic || null,
+      icDph: data.icDph || null,
       address: data.address || null,
       phone: data.phone || null,
       email: data.email || null,

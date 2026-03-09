@@ -7,7 +7,7 @@ import { notFound } from "next/navigation"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { BusinessHoursForm } from "@/components/settings/business-hours-form"
 import { OrganizationForm } from "@/components/settings/organization-form"
-import { Separator } from "@/components/ui/separator"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const DAYS = [
   { value: "1", label: "Pondelok" },
@@ -64,23 +64,25 @@ export default async function AdminSettingsPage() {
         <h1 className="text-2xl font-semibold">Nastavenia</h1>
       </div>
 
-      <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Údaje firmy</h2>
-          <p className="text-sm text-muted-foreground">Fakturačné a kontaktné údaje</p>
-        </div>
-        <OrganizationForm org={org} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Údaje firmy</CardTitle>
+          <CardDescription>Fakturačné a kontaktné údaje</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OrganizationForm org={org} />
+        </CardContent>
+      </Card>
 
-      <Separator />
-
-      <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Otváracie hodiny</h2>
-          <p className="text-sm text-muted-foreground">Otváracie hodiny podniku</p>
-        </div>
-        <BusinessHoursForm initialData={initialData} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Otváracie hodiny</CardTitle>
+          <CardDescription>Otváracie hodiny podniku</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BusinessHoursForm initialData={initialData} />
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -26,6 +26,7 @@ interface OrgRow {
   name: string
   ico: string | null
   dic: string | null
+  icDph: string | null
   address: string | null
   phone: string | null
   email: string | null
