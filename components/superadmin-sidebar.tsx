@@ -25,7 +25,7 @@ export function SuperadminSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="px-3 py-2 flex flex-col items-center gap-1">
+      <SidebarHeader className="px-3 pt-2 pb-0 flex flex-col items-center gap-1">
         <Link href="/superadmin" onClick={() => setOpenMobile(false)}>
           <Image src="/logo.png" alt="Shiftie" width={160} height={44} className="object-contain" unoptimized />
         </Link>
