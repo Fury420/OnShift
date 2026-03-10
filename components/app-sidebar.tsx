@@ -73,9 +73,9 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu className="gap-2">
+      <SidebarContent className="px-4">
+        <SidebarGroup className="px-0 py-2">
+          <SidebarMenu className="gap-1">
             {employeeNav.map(({ href, label, icon: Icon }) => {
               const hasBadge =
                 (href === "/replacements" && pendingReplacementCount > 0) ||
@@ -100,9 +100,9 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
         {(user.role === "admin" || user.role === "manager") && (
           <>
             <SidebarSeparator />
-            <SidebarGroup>
+            <SidebarGroup className="px-0 py-2">
               <SidebarGroupLabel>Administrácia</SidebarGroupLabel>
-              <SidebarMenu className="gap-2">
+              <SidebarMenu className="gap-1">
                 {(user.role === "admin" ? adminNav : managerNav).map(({ href, label, icon: Icon }) => {
                   const isEmployees = href === "/admin/employees"
                   const isActive = isEmployees
@@ -129,7 +129,7 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
       </SidebarContent>
 
       {activeOrg && (
-        <SidebarFooter className="px-3 pb-3 pt-0">
+        <SidebarFooter className="px-4 pb-3 pt-0">
           {orgs.length > 1 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
