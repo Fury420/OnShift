@@ -4,6 +4,7 @@ import { db } from "@/db"
 import { attendance, shifts, user } from "@/db/schema"
 import { getSession } from "@/lib/session"
 import { eq, and, isNull, gte, lt, asc } from "drizzle-orm"
+import { DashboardPage } from "@/components/dashboard-page"
 import { ClockCard } from "@/components/attendance/clock-card"
 import { AttendanceTable } from "@/components/attendance/attendance-table"
 
@@ -168,7 +169,7 @@ export default async function AttendancePage({
     : null
 
   return (
-    <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
+    <DashboardPage>
       <h1 className="text-2xl font-semibold">Dochádzka</h1>
 
       <ClockCard
@@ -191,6 +192,6 @@ export default async function AttendancePage({
         monthlyWage={monthlyWage}
         hourlyRate={hourlyRate}
       />
-    </div>
+    </DashboardPage>
   )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { DashboardPage } from "@/components/dashboard-page"
 import type { LeaveRow } from "@/components/leaves/employee-leaves-table"
 import { RequestTabs } from "./request-tabs"
 
@@ -82,7 +83,7 @@ export function CombinedClient({
   colleagues,
 }: Props) {
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <DashboardPage>
       <h1 className="text-2xl font-semibold">Žiadosti</h1>
 
       <RequestTabs
@@ -100,6 +101,6 @@ export function CombinedClient({
         myShifts={myShifts}
         colleagues={colleagues}
       />
-    </div>
+    </DashboardPage>
   )
 }

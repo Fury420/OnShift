@@ -4,6 +4,7 @@ import { db } from "@/db"
 import { positions } from "@/db/schema"
 import { asc, eq } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
+import { DashboardPage } from "@/components/dashboard-page"
 import { PositionsManager } from "@/components/admin/positions-manager"
 
 export default async function AdminPositionsPage() {
@@ -17,13 +18,13 @@ export default async function AdminPositionsPage() {
     .orderBy(asc(positions.sortOrder), asc(positions.name))
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <DashboardPage>
       <PositionsManager
         positions={orgPositions.map((p) => ({
           id: p.id,
           name: p.name,
         }))}
       />
-    </div>
+    </DashboardPage>
   )
 }

@@ -4,6 +4,7 @@ import { db } from "@/db"
 import { leaves, user } from "@/db/schema"
 import { eq, asc, desc, sql } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
+import { DashboardPage } from "@/components/dashboard-page"
 import { AdminLeavesTable, type AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
 import { StaffTabs } from "@/components/admin/staff-tabs"
 
@@ -42,9 +43,9 @@ export default async function AdminLeavesPage() {
   }))
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <DashboardPage>
       <StaffTabs />
       <AdminLeavesTable rows={rows} />
-    </div>
+    </DashboardPage>
   )
 }

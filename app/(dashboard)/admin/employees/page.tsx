@@ -4,6 +4,7 @@ import { db } from "@/db"
 import { user, positions } from "@/db/schema"
 import { asc, eq } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
+import { DashboardPage } from "@/components/dashboard-page"
 import { EmployeesTable } from "@/components/employees/employees-table"
 
 export default async function AdminEmployeesPage() {
@@ -54,12 +55,12 @@ export default async function AdminEmployeesPage() {
   }))
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <DashboardPage>
       <EmployeesTable
         employees={formatted}
         currentUserId={session.user.id}
         positions={orgPositions}
       />
-    </div>
+    </DashboardPage>
   )
 }

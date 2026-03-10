@@ -4,9 +4,11 @@ import { db } from "@/db"
 import { attendance, user } from "@/db/schema"
 import { eq, and, gte, lt, isNotNull, asc } from "drizzle-orm"
 import { requireManagerOrAdmin } from "@/lib/auth-guard"
+import { DashboardPage } from "@/components/dashboard-page"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { HoursPieChart } from "@/components/reports/hours-pie-chart"
 import { AdminAttendanceTable } from "@/components/reports/admin-attendance-table"
 
@@ -119,7 +121,7 @@ export default async function AdminReportsPage({
   })
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+    <DashboardPage size="wide">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Reporty</h1>
         <div className="flex items-center gap-2">
@@ -145,18 +147,22 @@ export default async function AdminReportsPage({
           <AdminAttendanceTable rows={allRows} grandTotal={grandTotal} />
 
           {/* ── Pie chart ─────────────────────────────────── */}
-          <div className="rounded-lg border bg-card p-4">
-            <p className="text-sm font-medium text-muted-foreground mb-1">Odpracované hodiny</p>
-            <HoursPieChart
-              data={Array.from(pieMap.values()).map((g) => ({
-                name: g.name,
-                minutes: g.totalMinutes,
-                color: g.color,
-              }))}
-            />
-          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Odpracované hodiny</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <HoursPieChart
+                data={Array.from(pieMap.values()).map((g) => ({
+                  name: g.name,
+                  minutes: g.totalMinutes,
+                  color: g.color,
+                }))}
+              />
+            </CardContent>
+          </Card>
         </div>
       )}
-    </div>
+    </DashboardPage>
   )
 }

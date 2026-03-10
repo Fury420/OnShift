@@ -4,6 +4,7 @@ import { db } from "@/db"
 import { attendance, shifts, user } from "@/db/schema"
 import { eq, and, gte, lt, lte, isNotNull, asc } from "drizzle-orm"
 import { requireAdmin } from "@/lib/auth-guard"
+import { DashboardPage } from "@/components/dashboard-page"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -149,7 +150,7 @@ export default async function AdminWagesPage({
   })
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <DashboardPage>
       <div className="flex items-end justify-between">
         <StaffTabs />
         <div className="flex items-center gap-2 pb-px">
@@ -176,6 +177,6 @@ export default async function AdminWagesPage({
         <h2 className="text-base font-semibold text-muted-foreground">Plánované mzdy (odhad)</h2>
         <PlannedWagesTable rows={plannedRows} />
       </div>
-    </div>
+    </DashboardPage>
   )
 }
