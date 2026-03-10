@@ -67,7 +67,7 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
 
   return (
     <Sidebar collapsible="offcanvas">
-      <SidebarHeader className="px-4 py-4 flex flex-col items-center">
+      <SidebarHeader className="px-3 py-2 flex flex-col items-center">
         <Link href="/" onClick={() => setOpenMobile(false)}>
           <Image src="/logo.png" alt="Shiftie" width={160} height={44} className="object-contain" unoptimized />
         </Link>
