@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic"
 import { db } from "@/db"
 import { attendance, user } from "@/db/schema"
 import { eq, and, gte, lt, isNotNull, asc } from "drizzle-orm"
-import { requireAdmin } from "@/lib/auth-guard"
+import { requireManagerOrAdmin } from "@/lib/auth-guard"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -41,7 +41,7 @@ export default async function AdminReportsPage({
 }: {
   searchParams: Promise<{ month?: string }>
 }) {
-  const session = await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = (session.user as { organizationId?: string | null }).organizationId!
 
   const { month } = await searchParams

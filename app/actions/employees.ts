@@ -11,7 +11,7 @@ export async function createEmployee(data: {
   name: string
   email: string
   password: string
-  role: "admin" | "employee"
+  role: "admin" | "manager" | "employee"
   color: string
   hourlyRate?: number | null
   positionId?: string | null
@@ -50,7 +50,7 @@ export async function createEmployee(data: {
 
 export async function updateEmployee(
   id: string,
-  data: { name: string; role: "admin" | "employee"; color: string; hourlyRate?: number | null; positionId?: string | null },
+  data: { name: string; role: "admin" | "manager" | "employee"; color: string; hourlyRate?: number | null; positionId?: string | null },
 ) {
   await requireAdmin()
   const orgId = await getOrganizationId()

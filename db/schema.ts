@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, pgEnum, date, time, uuid, boolean, decimal, u
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export const roleEnum = pgEnum("role", ["superadmin", "admin", "employee"])
+export const roleEnum = pgEnum("role", ["superadmin", "admin", "manager", "employee"])
 export const licenseTypeEnum = pgEnum("license_type", ["free", "basic", "pro"])
 export const shiftStatusEnum = pgEnum("shift_status", ["requested", "draft", "open", "published"])
 export const openShiftClaimStatusEnum = pgEnum("open_shift_claim_status", ["pending", "approved", "rejected"])

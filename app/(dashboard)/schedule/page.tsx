@@ -18,7 +18,7 @@ export default async function SchedulePage({
   if (!session) redirect("/login")
 
   const sessionUser = session.user as { role?: string; organizationId?: string | null }
-  const isAdmin = sessionUser.role === "admin"
+  const isAdmin = sessionUser.role === "admin" || sessionUser.role === "manager"
   const orgId = await getOrganizationId()
 
   const { month, week, date } = await searchParams

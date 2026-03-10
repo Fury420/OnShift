@@ -56,7 +56,7 @@ export default async function ZastupPage({
   const isCurrentMonth = year === now.getFullYear() && monthNum === now.getMonth() + 1
 
   const sessionUser = session.user as { role?: string; organizationId?: string | null }
-  const isAdmin = sessionUser.role === "admin"
+  const isAdmin = sessionUser.role === "admin" || sessionUser.role === "manager"
   const orgId = sessionUser.organizationId!
   const userId = session.user.id
   const requester = alias(user, "requester")

@@ -43,7 +43,7 @@ export interface Employee {
   id: string
   name: string
   email: string
-  role: "superadmin" | "admin" | "employee"
+  role: "superadmin" | "admin" | "manager" | "employee"
   color: string
   hourlyRate: number | null
   positionId: string | null
@@ -172,6 +172,11 @@ export function EmployeesTable({ employees, currentUserId, positions }: Employee
                       <Badge variant="default" className="gap-1">
                         <UserCog className="size-3" />
                         Admin
+                      </Badge>
+                    ) : emp.role === "manager" ? (
+                      <Badge variant="outline" className="gap-1">
+                        <UserCog className="size-3" />
+                        Manažér
                       </Badge>
                     ) : (
                       <Badge variant="secondary">Zamestnanec</Badge>

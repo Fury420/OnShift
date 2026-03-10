@@ -4,7 +4,7 @@ import { db } from "@/db"
 import { shifts, openShiftClaims, leaves, user } from "@/db/schema"
 import { eq, inArray, and, lt, gt, ne, isNotNull, isNull, lte, gte } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
-import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { requireManagerOrAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { getSession } from "@/lib/session"
 import { toDateStr, addDays } from "@/lib/week"
 import { createNotification, getOrgEmployeeIds } from "@/lib/notifications"
@@ -63,7 +63,7 @@ export async function createShift(data: {
   note?: string
   maxClaims?: number
 }) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
   if (data.userId) {
     await checkConflict(data.userId, data.date, data.startTime, data.endTime)
@@ -101,7 +101,7 @@ export async function createShiftsBatch(data: {
   note?: string
   maxClaims?: number
 }) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   const excluded = new Set(data.excludeDates ?? [])
@@ -158,7 +158,7 @@ export async function updateShift(
   id: string,
   data: { userId: string | null; positionId?: string | null; date: string; startTime: string; endTime: string; note?: string; maxClaims?: number },
 ) {
-  const session = await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
   if (data.userId) {
     await checkConflict(data.userId, data.date, data.startTime, data.endTime, id)
@@ -282,7 +282,7 @@ export async function unclaimShift(shiftId: string) {
 // ─── Admin: remove a claim ──────────────────────────────────────────────────
 
 export async function adminRemoveClaim(claimId: string) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db
@@ -295,7 +295,7 @@ export async function adminRemoveClaim(claimId: string) {
 // ─── Delete shift ───────────────────────────────────────────────────────────
 
 export async function deleteShift(id: string) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db.delete(shifts).where(and(eq(shifts.id, id), eq(shifts.organizationId, orgId)))
@@ -306,7 +306,7 @@ export async function deleteShift(id: string) {
 // ─── Toggle shift status (draft ↔ published) ────────────────────────────────
 
 export async function toggleShiftStatus(id: string, current: "draft" | "open" | "published") {
-  const session = await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   const newStatus = current === "draft" ? "published" : "draft"
@@ -349,7 +349,7 @@ export async function toggleShiftStatus(id: string, current: "draft" | "open" | 
 // Priradené zmeny → published, neobsadené zmeny → open (viditeľné pre zamestnancov)
 
 export async function publishDraftShifts(ids: string[]) {
-  const session = await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
   if (ids.length === 0) return
 
@@ -404,7 +404,7 @@ export async function publishDraftShifts(ids: string[]) {
 // ─── Delete all draft shifts (koncepty) ────────────────────────────────────
 
 export async function deleteAllDraftShifts(ids: string[]) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
   if (ids.length === 0) return
 

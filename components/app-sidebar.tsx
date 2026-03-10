@@ -38,6 +38,10 @@ const adminNav = [
   { href: "/admin/settings", label: "Nastavenia", icon: Settings2 },
 ]
 
+const managerNav = [
+  { href: "/admin/reports", label: "Reporty", icon: BarChart3 },
+]
+
 interface AppSidebarProps {
   user: { name: string; email: string; role: string; color?: string | null }
   orgs: { id: string; name: string }[]
@@ -72,29 +76,34 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {employeeNav.map(({ href, label, icon: Icon }) => (
-              <SidebarMenuItem key={href}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
-                  <Link href={href} onClick={() => setOpenMobile(false)}>
-                    <Icon />
-                    <span>{label}</span>
-                    {href === "/replacements" && pendingReplacementCount > 0 && (
-                      <span className="ml-auto size-2 rounded-full bg-destructive" />
-                    )}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {employeeNav.map(({ href, label, icon: Icon }) => {
+              const hasBadge =
+                (href === "/replacements" && pendingReplacementCount > 0) ||
+                (href === "/replacements" && user.role === "manager" && pendingLeaveCount > 0)
+              return (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
+                    <Link href={href} onClick={() => setOpenMobile(false)}>
+                      <Icon />
+                      <span>{label}</span>
+                      {hasBadge && (
+                        <span className="ml-auto size-2 rounded-full bg-destructive" />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
           </SidebarMenu>
         </SidebarGroup>
 
-        {user.role === "admin" && (
+        {(user.role === "admin" || user.role === "manager") && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
               <SidebarGroupLabel>Administrácia</SidebarGroupLabel>
               <SidebarMenu>
-                {adminNav.map(({ href, label, icon: Icon }) => {
+                {(user.role === "admin" ? adminNav : managerNav).map(({ href, label, icon: Icon }) => {
                   const isEmployees = href === "/admin/employees"
                   const isActive = isEmployees
                     ? employeesPaths.some((p) => pathname.startsWith(p))

@@ -5,7 +5,7 @@ import { leaves } from "@/db/schema"
 import { eq, and, lte, gte } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/session"
-import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { requireManagerOrAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { createNotification, getAdminIds } from "@/lib/notifications"
 
 export async function requestLeave(data: {
@@ -110,7 +110,7 @@ export async function adminUpdateLeave(
   id: string,
   data: { type: "vacation" | "sick" | "personal"; startDate: string; endDate: string; note?: string },
 ) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db
@@ -123,7 +123,7 @@ export async function adminUpdateLeave(
 }
 
 export async function adminUpdateLeaveStatus(id: string, status: "approved" | "rejected") {
-  const session = await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   const [leave] = await db
@@ -162,7 +162,8 @@ export async function approveLeave(id: string, status: "approved" | "rejected") 
   if (!session) throw new Error("Nie ste prihlásený.")
   const orgId = await getOrganizationId()
   const currentUserId = session.user.id
-  const isAdmin = (session.user as { role?: string }).role === "admin"
+  const role = (session.user as { role?: string }).role
+  const isAdmin = role === "admin" || role === "manager"
 
   const [leave] = await db
     .select({ id: leaves.id, userId: leaves.userId, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId, startDate: leaves.startDate })
@@ -199,7 +200,7 @@ export async function approveLeave(id: string, status: "approved" | "rejected") 
 }
 
 export async function adminDeleteLeave(id: string) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db.delete(leaves).where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
@@ -215,7 +216,7 @@ export async function getApprovedLeavesInRange(
   dateFrom: string,
   dateTo: string,
 ): Promise<{ startDate: string; endDate: string; type: string }[]> {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
   return db
     .select({ startDate: leaves.startDate, endDate: leaves.endDate, type: leaves.type })

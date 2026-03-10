@@ -29,7 +29,7 @@ export interface PositionOption {
 export interface EmployeeForEdit {
   id: string
   name: string
-  role: "superadmin" | "admin" | "employee"
+  role: "superadmin" | "admin" | "manager" | "employee"
   color: string
   hourlyRate: number | null
   positionId: string | null
@@ -59,7 +59,7 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"admin" | "employee">("employee")
+  const [role, setRole] = useState<"admin" | "manager" | "employee">("employee")
   const [color, setColor] = useState(PRESET_COLORS[0])
   const [positionId, setPositionId] = useState("")
   const [hourlyRate, setHourlyRate] = useState("")
@@ -71,7 +71,7 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
       setName(employee?.name ?? "")
       setEmail("")
       setPassword("")
-      setRole((employee?.role === "admin" ? "admin" : "employee") as "admin" | "employee")
+      setRole((employee?.role === "admin" ? "admin" : employee?.role === "manager" ? "manager" : "employee") as "admin" | "manager" | "employee")
       setColor(employee?.color || PRESET_COLORS[0])
       setPositionId(employee?.positionId ?? "")
       setHourlyRate(employee?.hourlyRate != null ? String(employee.hourlyRate) : "")
@@ -151,12 +151,13 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="role">Rola</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as "admin" | "employee")}>
+            <Select value={role} onValueChange={(v) => setRole(v as "admin" | "manager" | "employee")}>
               <SelectTrigger id="role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="employee">Zamestnanec</SelectItem>
+                <SelectItem value="manager">Manažér</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>

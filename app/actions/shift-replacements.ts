@@ -3,7 +3,7 @@
 import { db } from "@/db"
 import { shifts, shiftReplacements, openShiftClaims } from "@/db/schema"
 import { getSession } from "@/lib/session"
-import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { requireManagerOrAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { createNotification, getAdminIds } from "@/lib/notifications"
@@ -21,16 +21,17 @@ export async function requestReplacement(shiftId: string, replacementUserId: str
 
   if (!shift) throw new Error("Zmena neexistuje")
   const role = (session.user as { role?: string }).role
+  const isAdminOrManager = role === "admin" || role === "manager"
   const isAssignedToMe = shift.userId === session.user.id
   const [myClaim] =
-    role !== "admin" && !isAssignedToMe
+    !isAdminOrManager && !isAssignedToMe
       ? await db
           .select({ id: openShiftClaims.id })
           .from(openShiftClaims)
           .where(and(eq(openShiftClaims.shiftId, shiftId), eq(openShiftClaims.claimedByUserId, session.user.id), eq(openShiftClaims.status, "approved")))
           .limit(1)
       : [{ id: null as string | null }]
-  if (role !== "admin" && !isAssignedToMe && !myClaim?.id) throw new Error("Nemáš oprávnenie")
+  if (!isAdminOrManager && !isAssignedToMe && !myClaim?.id) throw new Error("Nemáš oprávnenie")
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -130,7 +131,7 @@ export async function respondToReplacement(id: string, response: "accepted" | "r
 }
 
 export async function adminResolveReplacement(id: string, response: "accepted" | "rejected") {
-  const session = await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   let requestedByUserId: string | null = null
@@ -189,7 +190,7 @@ export async function adminResolveReplacement(id: string, response: "accepted" |
 }
 
 export async function adminDeleteReplacement(id: string) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db.delete(shiftReplacements).where(and(eq(shiftReplacements.id, id), eq(shiftReplacements.organizationId, orgId)))

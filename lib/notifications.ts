@@ -1,6 +1,6 @@
 import { db } from "@/db"
 import { notifications, user } from "@/db/schema"
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq, isNull, or } from "drizzle-orm"
 
 export type NotificationType = typeof notifications.$inferInsert.type
 
@@ -33,7 +33,7 @@ export async function createNotification(input: CreateNotificationInput) {
   await db.insert(notifications).values(rows)
 }
 
-/** Get IDs of all non-archived admins in an organization. */
+/** Get IDs of all non-archived admins and managers in an organization. */
 export async function getAdminIds(organizationId: string): Promise<string[]> {
   const admins = await db
     .select({ id: user.id })
@@ -41,7 +41,7 @@ export async function getAdminIds(organizationId: string): Promise<string[]> {
     .where(
       and(
         eq(user.organizationId, organizationId),
-        eq(user.role, "admin"),
+        or(eq(user.role, "admin"), eq(user.role, "manager")),
         isNull(user.archivedAt),
       ),
     )

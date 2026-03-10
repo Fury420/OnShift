@@ -18,6 +18,22 @@ export async function requireAdmin() {
   redirect("/")
 }
 
+export async function requireManagerOrAdmin() {
+  const session = await getSession()
+  if (!session) redirect("/login")
+  const role = (session.user as { role?: string }).role
+  if (role === "admin" || role === "manager") return session
+  if (role === "superadmin") {
+    const cookieStore = await cookies()
+    if (cookieStore.get("impersonateOrgId")?.value) return session
+  }
+  redirect("/")
+}
+
+export function isManagerOrAdmin(role?: string): boolean {
+  return role === "admin" || role === "manager" || role === "superadmin"
+}
+
 export async function requireSuperAdmin() {
   const session = await getSession()
   if (!session) redirect("/login")
