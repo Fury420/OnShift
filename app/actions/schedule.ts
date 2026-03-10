@@ -10,7 +10,6 @@ import { toDateStr, addDays } from "@/lib/week"
 import { createNotification, getOrgEmployeeIds } from "@/lib/notifications"
 
 function revalidateSchedule() {
-  revalidatePath("/admin/schedule")
   revalidatePath("/schedule")
 }
 
