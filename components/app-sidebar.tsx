@@ -75,14 +75,14 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarMenu>
+          <SidebarMenu className="gap-2">
             {employeeNav.map(({ href, label, icon: Icon }) => {
               const hasBadge =
                 (href === "/replacements" && pendingReplacementCount > 0) ||
                 (href === "/replacements" && user.role === "manager" && pendingLeaveCount > 0)
               return (
                 <SidebarMenuItem key={href}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(href)} size="lg" className="rounded-lg px-3 min-h-12">
                     <Link href={href} onClick={() => setOpenMobile(false)}>
                       <Icon />
                       <span>{label}</span>
@@ -102,7 +102,7 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
             <SidebarSeparator />
             <SidebarGroup>
               <SidebarGroupLabel>Administrácia</SidebarGroupLabel>
-              <SidebarMenu>
+              <SidebarMenu className="gap-2">
                 {(user.role === "admin" ? adminNav : managerNav).map(({ href, label, icon: Icon }) => {
                   const isEmployees = href === "/admin/employees"
                   const isActive = isEmployees
@@ -110,7 +110,7 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
                     : pathname.startsWith(href)
                   return (
                     <SidebarMenuItem key={href}>
-                      <SidebarMenuButton asChild isActive={isActive}>
+                      <SidebarMenuButton asChild isActive={isActive} size="lg" className="rounded-lg px-3 min-h-12">
                         <Link href={href} onClick={() => setOpenMobile(false)}>
                           <Icon />
                           <span>{label}</span>

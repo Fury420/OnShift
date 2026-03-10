@@ -147,8 +147,19 @@ export function RequestTabs({
 
           {/* 1. Moje žiadosti o výmenu */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
               <CardTitle className="text-base">Moje žiadosti o výmenu</CardTitle>
+              {!isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setReplacementDialogOpen(true)}
+                  disabled={myShifts.length === 0}
+                >
+                  <Plus className="size-4" />
+                  Požiadať o zastup
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               {!isAdmin && incomingRequests.length > 0 && (
