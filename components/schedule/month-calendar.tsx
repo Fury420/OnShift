@@ -18,6 +18,7 @@ import type { ColleagueOption } from "@/components/shift-replacement/request-dia
 import { NewReplacementDialog } from "@/components/shift-replacement/new-replacement-dialog"
 import { claimShift, deleteShift, toggleShiftStatus, publishDraftShifts, deleteAllDraftShifts, updateShift, adminRemoveClaim } from "@/app/actions/schedule"
 import { toast } from "sonner"
+import { toDateStr } from "@/lib/week"
 import { ShiftDialog, type ShiftForEdit, type EmployeeOption, type PositionOption } from "./shift-dialog"
 
 export interface CalendarShift {
@@ -170,7 +171,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
     }
     if (initialWeek === "last") return Math.max(0, weeks.length - 1)
     if (initialWeek === "first") return 0
-    const today = new Date().toISOString().slice(0, 10)
+    const today = toDateStr(new Date())
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
     return idx >= 0 ? idx : weeks.findIndex((w) => w.some((d) => d.isCurrentMonth)) ?? 0
   })
@@ -329,7 +330,14 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
       setView("week")
     } else if (initialWeek === "last") setWeekIdx(Math.max(0, weeks.length - 1))
     else if (initialWeek === "first") setWeekIdx(0)
-  }, [initialDate, initialWeek, weeks.length, weeks])
+    else {
+      // No initialWeek/initialDate — default to today's week or first week of month
+      const today = toDateStr(new Date())
+      const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
+      setWeekIdx(idx >= 0 ? idx : weeks.findIndex((w) => w.some((d) => d.isCurrentMonth)) ?? 0)
+    }
+  // monthLabel ensures effect fires on month navigation even when initialWeek value stays the same
+  }, [initialDate, initialWeek, weeks.length, weeks, monthLabel])
 
   useEffect(() => {
     if (view !== "week") return
@@ -435,13 +443,13 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
   }
 
   function goToToday() {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = toDateStr(new Date())
     const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
     if (idx >= 0) setWeekIdx(idx)
     else router.push(schedulePath)
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = toDateStr(new Date())
 
   const nextOpenShift = !isAdmin ? (() => {
     const daysToSearch = view === "week" ? currentWeek : weeks.flat()
