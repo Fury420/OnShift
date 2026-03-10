@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -33,16 +34,23 @@ export interface ColleagueOption {
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  myShifts: ShiftOption[]
+  myShifts?: ShiftOption[]
   colleagues: ColleagueOption[]
+  /** Pri otvorení z kalendára (klik na zmenu) – zmena je predvybraná, výber zmeny sa nezobrazí */
+  initialShiftId?: string
+  initialShiftLabel?: string
 }
 
-export function NewReplacementDialog({ open, onOpenChange, myShifts, colleagues }: Props) {
+export function NewReplacementDialog({ open, onOpenChange, myShifts = [], colleagues, initialShiftId, initialShiftLabel }: Props) {
+  const router = useRouter()
   const [shiftId, setShiftId] = useState("")
   const [colleagueId, setColleagueId] = useState("")
   const [note, setNote] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
+
+  const effectiveShiftId = initialShiftId ?? shiftId
+  const showShiftSelect = !initialShiftId
 
   function handleOpenChange(o: boolean) {
     if (!o) {
@@ -57,13 +65,18 @@ export function NewReplacementDialog({ open, onOpenChange, myShifts, colleagues 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-    if (!shiftId) { setError("Vyberte zmenu."); return }
+    if (!effectiveShiftId) { setError("Vyberte zmenu."); return }
     if (!colleagueId) { setError("Vyberte náhradníka."); return }
 
     startTransition(async () => {
       try {
-        await requestReplacement(shiftId, colleagueId, note || undefined)
+        const result = await requestReplacement(effectiveShiftId, colleagueId, note || undefined)
         handleOpenChange(false)
+        if (result?.shiftDate) {
+          router.push(`/replacements?month=${result.shiftDate.slice(0, 7)}`)
+        } else {
+          router.refresh()
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Nastala chyba")
       }
@@ -78,23 +91,32 @@ export function NewReplacementDialog({ open, onOpenChange, myShifts, colleagues 
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>Zmena</Label>
-            <Select value={shiftId} onValueChange={setShiftId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Vyberte zmenu…" />
-              </SelectTrigger>
-              <SelectContent>
-                {myShifts.length === 0 ? (
-                  <SelectItem value="__none" disabled>Žiadne nadchádzajúce zmeny</SelectItem>
-                ) : (
-                  myShifts.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          {showShiftSelect ? (
+            <div className="flex flex-col gap-1.5">
+              <Label>Zmena</Label>
+              <Select value={shiftId} onValueChange={setShiftId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vyberte zmenu…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {myShifts.length === 0 ? (
+                    <SelectItem value="__none" disabled>Žiadne nadchádzajúce zmeny</SelectItem>
+                  ) : (
+                    myShifts.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            initialShiftLabel && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Zmena</Label>
+                <p className="text-sm py-2 px-3 rounded-md bg-muted">{initialShiftLabel}</p>
+              </div>
+            )
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label>Navrhnutý náhradník</Label>
@@ -126,7 +148,7 @@ export function NewReplacementDialog({ open, onOpenChange, myShifts, colleagues 
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Zrušiť
             </Button>
-            <Button type="submit" disabled={isPending || myShifts.length === 0}>
+            <Button type="submit" disabled={isPending || (!effectiveShiftId || (showShiftSelect && myShifts.length === 0))}>
               {isPending ? "Odosielam…" : "Odoslať žiadosť"}
             </Button>
           </DialogFooter>

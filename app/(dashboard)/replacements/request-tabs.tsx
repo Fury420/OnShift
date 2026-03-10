@@ -1,0 +1,216 @@
+"use client"
+
+import { useState } from "react"
+import { Palmtree, ArrowLeftRight, Plus } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
+import { EmployeeLeavesTable, type LeaveRow } from "@/components/leaves/employee-leaves-table"
+import { AdminLeavesTable, type AdminLeaveRow } from "@/components/leaves/admin-leaves-table"
+import { ApproveAsReplacementTable, type LeaveToApproveRow } from "@/components/leaves/approve-as-replacement-table"
+import { MyRequestsTable, type MyReplacementRequest } from "@/components/shift-replacement/my-requests-table"
+import { IncomingRequestsTable } from "@/components/shift-replacement/incoming-requests-table"
+import { AdminReplacementsTable, type AdminReplacementRequest } from "@/components/shift-replacement/admin-replacements-table"
+import { NewReplacementDialog, type ShiftOption, type ColleagueOption } from "@/components/shift-replacement/new-replacement-dialog"
+
+const EMPTY_MESSAGE = "Zatiaľ tu nič nie je."
+
+export interface RequestTabsProps {
+  isAdmin: boolean
+  leaves: LeaveRow[]
+  myRequests: MyReplacementRequest[]
+  pendingLeavesForAdmin: AdminLeaveRow[]
+  leavesToApproveAsReplacement: LeaveToApproveRow[]
+  incomingRequests: { id: string; shiftDate: string; shiftTime: string; requesterName: string; note: string | null }[]
+  allPendingRequests: AdminReplacementRequest[]
+  monthLabel: string
+  prevMonth: string
+  nextMonth: string
+  isCurrentMonth: boolean
+  myShifts?: ShiftOption[]
+  colleagues?: ColleagueOption[]
+}
+
+export function RequestTabs({
+  isAdmin,
+  leaves,
+  myRequests,
+  pendingLeavesForAdmin,
+  leavesToApproveAsReplacement,
+  incomingRequests,
+  allPendingRequests,
+  monthLabel,
+  prevMonth,
+  nextMonth,
+  isCurrentMonth,
+  myShifts = [],
+  colleagues = [],
+}: RequestTabsProps) {
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
+  const [replacementDialogOpen, setReplacementDialogOpen] = useState(false)
+
+  return (
+    <>
+      <Tabs defaultValue="dovolenky" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="dovolenky" className="gap-1.5">
+            <Palmtree className="size-4" />
+            Dovolenky
+          </TabsTrigger>
+          <TabsTrigger value="vymeny" className="gap-1.5">
+            <ArrowLeftRight className="size-4" />
+            Výmeny zmien
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dovolenky" className="mt-4 space-y-4">
+          {/* 1. Moje žiadosti o dovolenku */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+              <CardTitle className="text-base">Moje žiadosti o dovolenku</CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setLeaveDialogOpen(true)}>
+                <Plus className="size-4" />
+                Žiadosť o dovolenku
+              </Button>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              {leavesToApproveAsReplacement.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-medium">Žiadosti na schválenie (ste navrhnutý ako zastup)</p>
+                  <ApproveAsReplacementTable rows={leavesToApproveAsReplacement} />
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                {leaves.length === 0 && leavesToApproveAsReplacement.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                ) : leaves.length === 0 ? (
+                  <p className="py-4 text-center text-muted-foreground text-sm">{EMPTY_MESSAGE}</p>
+                ) : (
+                  <EmployeeLeavesTable rows={leaves} />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. Žiadosti na schválenie – iba admin / manager */}
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Žiadosti na schválenie</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingLeavesForAdmin.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                ) : (
+                  <AdminLeavesTable rows={pendingLeavesForAdmin} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="vymeny" className="mt-4 space-y-4">
+          {/* Moje naplánované zmeny (kontext pre vytvorenie žiadosti) – iba zamestnanec */}
+          {!isAdmin && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+                <div>
+                  <CardTitle className="text-base">Moje naplánované zmeny</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Aktuálny mesiac</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setReplacementDialogOpen(true)}
+                  disabled={myShifts.length === 0}
+                >
+                  <Plus className="size-4" />
+                  Požiadať o zastup
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {myShifts.length === 0 ? (
+                  <p className="py-6 text-center text-muted-foreground text-sm">V tomto mesiaci nemáte naplánované žiadne zmeny.</p>
+                ) : (
+                  <div className="max-h-[280px] overflow-y-auto rounded-md border divide-y">
+                    {myShifts.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                        <span>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 1. Moje žiadosti o výmenu */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+              <CardTitle className="text-base">Moje žiadosti o výmenu</CardTitle>
+              {!isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setReplacementDialogOpen(true)}
+                  disabled={myShifts.length === 0}
+                >
+                  <Plus className="size-4" />
+                  Požiadať o zastup
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="flex flex-col gap-6">
+              {!isAdmin && incomingRequests.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-medium">Požiadali ťa o zastup</p>
+                  <IncomingRequestsTable requests={incomingRequests} />
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                {myRequests.length === 0 && (isAdmin || incomingRequests.length === 0) ? (
+                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                ) : myRequests.length === 0 ? (
+                  <p className="py-4 text-center text-muted-foreground text-sm">{EMPTY_MESSAGE}</p>
+                ) : (
+                  <MyRequestsTable
+                    requests={myRequests}
+                    monthLabel={monthLabel}
+                    prevMonth={prevMonth}
+                    nextMonth={nextMonth}
+                    isCurrentMonth={isCurrentMonth}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. Žiadosti na schválenie – iba admin / manager */}
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Žiadosti na schválenie</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {allPendingRequests.length === 0 ? (
+                  <p className="py-8 text-center text-muted-foreground">{EMPTY_MESSAGE}</p>
+                ) : (
+                  <AdminReplacementsTable requests={allPendingRequests} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <LeaveRequestDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} colleagues={colleagues} />
+      <NewReplacementDialog
+        open={replacementDialogOpen}
+        onOpenChange={setReplacementDialogOpen}
+        myShifts={myShifts}
+        colleagues={colleagues}
+      />
+    </>
+  )
+}

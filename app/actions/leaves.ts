@@ -2,16 +2,18 @@
 
 import { db } from "@/db"
 import { leaves } from "@/db/schema"
-import { eq, and } from "drizzle-orm"
+import { eq, and, lte, gte } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { getSession } from "@/lib/session"
-import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { requireManagerOrAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { createNotification, getAdminIds } from "@/lib/notifications"
 
 export async function requestLeave(data: {
   type: "vacation" | "sick" | "personal"
   startDate: string
   endDate: string
   note?: string
+  suggestedReplacementUserId?: string
 }) {
   const session = await getSession()
   if (!session) throw new Error("Nie ste prihlásený.")
@@ -25,10 +27,23 @@ export async function requestLeave(data: {
     endDate: data.endDate,
     note: data.note || null,
     status: "pending",
+    suggestedReplacementUserId: data.suggestedReplacementUserId || null,
   })
+
+  getAdminIds(orgId).then((adminIds) =>
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: adminIds,
+      type: "leave_requested",
+      title: `${session.user.name} požiadal/a o voľno (${data.startDate} – ${data.endDate})`,
+      linkUrl: "/admin/leaves",
+    }),
+  ).catch(console.error)
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }
 
 export async function cancelLeave(id: string) {
@@ -45,10 +60,24 @@ export async function cancelLeave(id: string) {
   if (leave.userId !== session.user.id) throw new Error("Nemáte oprávnenie.")
   if (leave.status !== "pending") throw new Error("Schválenú alebo zamietnutú žiadosť nie je možné zrušiť.")
 
+  const orgId = await getOrganizationId()
+
   await db.delete(leaves).where(and(eq(leaves.id, id), eq(leaves.userId, session.user.id)))
+
+  getAdminIds(orgId).then((adminIds) =>
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: adminIds,
+      type: "leave_cancelled",
+      title: `${session.user.name} zrušil/a žiadosť o voľno`,
+      linkUrl: "/admin/leaves",
+    }),
+  ).catch(console.error)
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }
 
 export async function updateLeave(
@@ -74,13 +103,14 @@ export async function updateLeave(
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
 }
 
 export async function adminUpdateLeave(
   id: string,
   data: { type: "vacation" | "sick" | "personal"; startDate: string; endDate: string; note?: string },
 ) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db
@@ -93,13 +123,32 @@ export async function adminUpdateLeave(
 }
 
 export async function adminUpdateLeaveStatus(id: string, status: "approved" | "rejected") {
-  await requireAdmin()
+  const session = await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
+
+  const [leave] = await db
+    .select({ userId: leaves.userId, startDate: leaves.startDate })
+    .from(leaves)
+    .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
+    .limit(1)
 
   await db
     .update(leaves)
-    .set({ status, updatedAt: new Date() })
+    .set({ status, approvedBy: session.user.id, updatedAt: new Date() })
     .where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
+
+  if (leave) {
+    const linkUrl = leave.startDate ? `/schedule?month=${leave.startDate.slice(0, 7)}&date=${leave.startDate}` : "/leaves"
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: [leave.userId],
+      type: status === "approved" ? "leave_approved" : "leave_rejected",
+      title: `Vaša žiadosť o voľno bola ${status === "approved" ? "schválená" : "zamietnutá"}`,
+      linkUrl,
+      referenceId: id,
+    }).catch(console.error)
+  }
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
@@ -107,12 +156,78 @@ export async function adminUpdateLeaveStatus(id: string, status: "approved" | "r
   revalidatePath("/replacements")
 }
 
+/** Schválenie/zamietnutie žiadosti o voľno – môže admin alebo navrhnutý zastup. */
+export async function approveLeave(id: string, status: "approved" | "rejected") {
+  const session = await getSession()
+  if (!session) throw new Error("Nie ste prihlásený.")
+  const orgId = await getOrganizationId()
+  const currentUserId = session.user.id
+  const role = (session.user as { role?: string }).role
+  const isAdmin = role === "admin" || role === "manager"
+
+  const [leave] = await db
+    .select({ id: leaves.id, userId: leaves.userId, organizationId: leaves.organizationId, status: leaves.status, suggestedReplacementUserId: leaves.suggestedReplacementUserId, startDate: leaves.startDate })
+    .from(leaves)
+    .where(eq(leaves.id, id))
+    .limit(1)
+
+  if (!leave) throw new Error("Žiadosť nebola nájdená.")
+  if (leave.organizationId !== orgId) throw new Error("Nemáte oprávnenie.")
+  if (leave.status !== "pending") throw new Error("Žiadosť už bola vybavená.")
+
+  const mayApprove = isAdmin || leave.suggestedReplacementUserId === currentUserId
+  if (!mayApprove) throw new Error("Nemáte oprávnenie schváliť túto žiadosť.")
+
+  await db
+    .update(leaves)
+    .set({ status, approvedBy: currentUserId, updatedAt: new Date() })
+    .where(eq(leaves.id, id))
+
+  const linkUrl = leave.startDate ? `/schedule?month=${leave.startDate.slice(0, 7)}&date=${leave.startDate}` : "/leaves"
+  createNotification({
+    organizationId: orgId,
+    actorId: currentUserId,
+    recipientIds: [leave.userId],
+    type: status === "approved" ? "leave_approved" : "leave_rejected",
+    title: `Vaša žiadosť o voľno bola ${status === "approved" ? "schválená" : "zamietnutá"}`,
+    linkUrl,
+    referenceId: id,
+  }).catch(console.error)
+
+  revalidatePath("/leaves")
+  revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
+}
+
 export async function adminDeleteLeave(id: string) {
-  await requireAdmin()
+  await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
   await db.delete(leaves).where(and(eq(leaves.id, id), eq(leaves.organizationId, orgId)))
 
   revalidatePath("/leaves")
   revalidatePath("/admin/leaves")
+  revalidatePath("/replacements")
+}
+
+/** Schválené obdobia voľna zamestnanca v danom období (pre zobrazenie pri tvorbe zmeny). */
+export async function getApprovedLeavesInRange(
+  userId: string,
+  dateFrom: string,
+  dateTo: string,
+): Promise<{ startDate: string; endDate: string; type: string }[]> {
+  await requireManagerOrAdmin()
+  const orgId = await getOrganizationId()
+  return db
+    .select({ startDate: leaves.startDate, endDate: leaves.endDate, type: leaves.type })
+    .from(leaves)
+    .where(
+      and(
+        eq(leaves.organizationId, orgId),
+        eq(leaves.userId, userId),
+        eq(leaves.status, "approved"),
+        lte(leaves.startDate, dateTo),
+        gte(leaves.endDate, dateFrom),
+      ),
+    )
 }

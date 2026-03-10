@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTransition } from "react"
-import { Clock, Calendar, Users, CalendarCog, BarChart3, Banknote, Umbrella, ClipboardList, Building2, ChevronsUpDown, Check, Settings2 } from "lucide-react"
+import { Clock, Calendar, Users, BarChart3, Banknote, ClipboardList, Building2, ChevronsUpDown, Check, Settings2 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -34,9 +34,12 @@ const employeeNav = [
 
 const adminNav = [
   { href: "/admin/employees", label: "Zamestnanci", icon: Users },
-  { href: "/admin/schedule", label: "Správa zmien", icon: CalendarCog },
   { href: "/admin/reports", label: "Reporty", icon: BarChart3 },
   { href: "/admin/settings", label: "Nastavenia", icon: Settings2 },
+]
+
+const managerNav = [
+  { href: "/admin/reports", label: "Reporty", icon: BarChart3 },
 ]
 
 interface AppSidebarProps {
@@ -44,9 +47,12 @@ interface AppSidebarProps {
   orgs: { id: string; name: string }[]
   activeOrgId: string | null
   pendingReplacementCount: number
+  pendingLeaveCount?: number
 }
 
-export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount }: AppSidebarProps) {
+const employeesPaths = ["/admin/employees", "/admin/wages", "/admin/leaves"]
+
+export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, pendingLeaveCount = 0 }: AppSidebarProps) {
   const pathname = usePathname()
   const { setOpenMobile } = useSidebar()
   const [isPending, startTransition] = useTransition()
@@ -67,41 +73,55 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount }:
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            {employeeNav.map(({ href, label, icon: Icon }) => (
-              <SidebarMenuItem key={href}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
-                  <Link href={href} onClick={() => setOpenMobile(false)}>
-                    <Icon />
-                    <span>{label}</span>
-                    {href === "/replacements" && pendingReplacementCount > 0 && (
-                      <span className="ml-auto size-2 rounded-full bg-destructive" />
-                    )}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+      <SidebarContent className="px-4">
+        <SidebarGroup className="px-0 py-2">
+          <SidebarMenu className="gap-1">
+            {employeeNav.map(({ href, label, icon: Icon }) => {
+              const hasBadge =
+                (href === "/replacements" && pendingReplacementCount > 0) ||
+                (href === "/replacements" && user.role === "manager" && pendingLeaveCount > 0)
+              return (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(href)} size="lg" className="rounded-lg px-3 min-h-12">
+                    <Link href={href} onClick={() => setOpenMobile(false)}>
+                      <Icon />
+                      <span>{label}</span>
+                      {hasBadge && (
+                        <span className="ml-auto size-2 rounded-full bg-destructive" />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
           </SidebarMenu>
         </SidebarGroup>
 
-        {user.role === "admin" && (
+        {(user.role === "admin" || user.role === "manager") && (
           <>
             <SidebarSeparator />
-            <SidebarGroup>
+            <SidebarGroup className="px-0 py-2">
               <SidebarGroupLabel>Administrácia</SidebarGroupLabel>
-              <SidebarMenu>
-                {adminNav.map(({ href, label, icon: Icon }) => (
-                  <SidebarMenuItem key={href}>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
-                      <Link href={href} onClick={() => setOpenMobile(false)}>
-                        <Icon />
-                        <span>{label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              <SidebarMenu className="gap-1">
+                {(user.role === "admin" ? adminNav : managerNav).map(({ href, label, icon: Icon }) => {
+                  const isEmployees = href === "/admin/employees"
+                  const isActive = isEmployees
+                    ? employeesPaths.some((p) => pathname.startsWith(p))
+                    : pathname.startsWith(href)
+                  return (
+                    <SidebarMenuItem key={href}>
+                      <SidebarMenuButton asChild isActive={isActive} size="lg" className="rounded-lg px-3 min-h-12">
+                        <Link href={href} onClick={() => setOpenMobile(false)}>
+                          <Icon />
+                          <span>{label}</span>
+                          {isEmployees && pendingLeaveCount > 0 && (
+                            <span className="ml-auto size-2 rounded-full bg-destructive" />
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroup>
           </>
@@ -109,7 +129,7 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount }:
       </SidebarContent>
 
       {activeOrg && (
-        <SidebarFooter className="px-3 pb-3 pt-0">
+        <SidebarFooter className="px-4 pb-3 pt-0">
           {orgs.length > 1 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

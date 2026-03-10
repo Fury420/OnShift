@@ -1,0 +1,2 @@
+ALTER TABLE "leaves" ADD COLUMN "suggested_replacement_user_id" text;--> statement-breakpoint
+ALTER TABLE "leaves" ADD CONSTRAINT "leaves_suggested_replacement_user_id_user_id_fk" FOREIGN KEY ("suggested_replacement_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;

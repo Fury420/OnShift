@@ -64,6 +64,55 @@
       "when": 1772742978158,
       "tag": "0008_worthless_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1772846432475,
+      "tag": "0009_faulty_cassandra_nova",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1772921508882,
+      "tag": "0010_slim_loners",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1772927194631,
+      "tag": "0011_wakeful_may_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1772990179784,
+      "tag": "0012_condemned_gwen_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1773013352416,
+      "tag": "0013_curly_nekra",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1773084108805,
+      "tag": "0014_cold_kid_colt",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1773102888169,
+      "tag": "0015_concerned_tenebrous",
+      "breakpoints": true
     }
   ]
 }

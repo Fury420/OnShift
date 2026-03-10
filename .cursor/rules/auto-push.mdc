@@ -1,0 +1,12 @@
+---
+description: Po commite vždy na konci automaticky spustiť git push
+alwaysApply: true
+---
+
+# Automatický push na konci
+
+Keď urobíš zmeny v repozitári a commitneš ich, **vždy na konci automaticky spusti `git push`** (ak používateľ nepožiadal inak).
+
+- Po `git commit` hneď spusti `git push`.
+- Ak používateľ povie „push“ alebo „commitni a pushni“, commitni (ak sú zmeny) a pushni.
+- Toto platí pre branch `main` / aktuálny branch; nepushuj iné branche bez pýtania.

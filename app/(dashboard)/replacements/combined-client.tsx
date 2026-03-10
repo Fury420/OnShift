@@ -1,15 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Umbrella, ArrowLeftRight } from "lucide-react"
-import { LeaveRequestDialog } from "@/components/leaves/leave-request-dialog"
-import { EmployeeLeavesTable, type LeaveRow } from "@/components/leaves/employee-leaves-table"
-import { MyRequestsTable } from "@/components/shift-replacement/my-requests-table"
-import { IncomingRequestsTable } from "@/components/shift-replacement/incoming-requests-table"
-import { AdminReplacementsTable } from "@/components/shift-replacement/admin-replacements-table"
-import { NewReplacementDialog, type ShiftOption, type ColleagueOption } from "@/components/shift-replacement/new-replacement-dialog"
+import { DashboardPage } from "@/components/dashboard-page"
+import type { LeaveRow } from "@/components/leaves/employee-leaves-table"
+import { RequestTabs } from "./request-tabs"
 
 interface MyRequest {
   id: string
@@ -39,18 +32,39 @@ interface AdminRequest {
   createdAt: string
 }
 
+interface LeaveToApprove {
+  id: string
+  userName: string
+  type: string
+  startDate: string
+  endDate: string
+  note: string | null
+}
+
+interface AdminLeaveRow {
+  id: string
+  userName: string
+  type: string
+  startDate: string
+  endDate: string
+  status: string
+  note: string | null
+}
+
 interface Props {
   leaves: LeaveRow[]
   isAdmin: boolean
   myRequests: MyRequest[]
   incomingRequests: IncomingRequest[]
   allPendingRequests: AdminRequest[]
+  pendingLeavesForAdmin: AdminLeaveRow[]
+  leavesToApproveAsReplacement: LeaveToApprove[]
   monthLabel: string
   prevMonth: string
   nextMonth: string
   isCurrentMonth: boolean
-  myShifts: ShiftOption[]
-  colleagues: ColleagueOption[]
+  myShifts: { id: string; label: string }[]
+  colleagues: { id: string; name: string }[]
 }
 
 export function CombinedClient({
@@ -59,6 +73,8 @@ export function CombinedClient({
   myRequests,
   incomingRequests,
   allPendingRequests,
+  pendingLeavesForAdmin,
+  leavesToApproveAsReplacement,
   monthLabel,
   prevMonth,
   nextMonth,
@@ -66,75 +82,25 @@ export function CombinedClient({
   myShifts,
   colleagues,
 }: Props) {
-  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
-  const [replacementDialogOpen, setReplacementDialogOpen] = useState(false)
-
   return (
-    <div className="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+    <DashboardPage>
       <h1 className="text-2xl font-semibold">Žiadosti</h1>
 
-      {/* ── Voľno ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-2">
-            <Umbrella className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Voľno</CardTitle>
-          </div>
-          <Button size="sm" onClick={() => setLeaveDialogOpen(true)}>
-            <Plus className="size-4" />
-            Nová žiadosť
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <EmployeeLeavesTable rows={leaves} />
-        </CardContent>
-      </Card>
-
-      {/* ── Zastup ────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-2">
-            <ArrowLeftRight className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Zastup zmien</CardTitle>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setReplacementDialogOpen(true)}>
-            <Plus className="size-4" />
-            Požiadať o zastup
-          </Button>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          {isAdmin ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">Všetky čakajúce žiadosti o zastup.</p>
-              <AdminReplacementsTable requests={allPendingRequests} />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">Kolegovia ťa navrhli ako náhradníka.</p>
-              <IncomingRequestsTable requests={incomingRequests} />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium">Moje žiadosti</p>
-            <MyRequestsTable
-              requests={myRequests}
-              monthLabel={monthLabel}
-              prevMonth={prevMonth}
-              nextMonth={nextMonth}
-              isCurrentMonth={isCurrentMonth}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <LeaveRequestDialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen} />
-      <NewReplacementDialog
-        open={replacementDialogOpen}
-        onOpenChange={setReplacementDialogOpen}
+      <RequestTabs
+        isAdmin={isAdmin}
+        leaves={leaves}
+        myRequests={myRequests}
+        pendingLeavesForAdmin={pendingLeavesForAdmin}
+        leavesToApproveAsReplacement={leavesToApproveAsReplacement}
+        incomingRequests={incomingRequests}
+        allPendingRequests={allPendingRequests}
+        monthLabel={monthLabel}
+        prevMonth={prevMonth}
+        nextMonth={nextMonth}
+        isCurrentMonth={isCurrentMonth}
         myShifts={myShifts}
         colleagues={colleagues}
       />
-    </div>
+    </DashboardPage>
   )
 }

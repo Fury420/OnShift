@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic"
 import { db } from "@/db"
 import { attendance, shifts, user } from "@/db/schema"
 import { getSession } from "@/lib/session"
-import { eq, and, isNull, gte, lt } from "drizzle-orm"
+import { eq, and, isNull, gte, lt, asc } from "drizzle-orm"
+import { DashboardPage } from "@/components/dashboard-page"
 import { ClockCard } from "@/components/attendance/clock-card"
 import { AttendanceTable } from "@/components/attendance/attendance-table"
 
@@ -63,7 +64,7 @@ export default async function AttendancePage({
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: TZ }) // YYYY-MM-DD
   console.log("[attendance] todayStr:", todayStr, "userId:", session.user.id)
 
-  const [openRecord, records, todayShifts, currentUser] = await Promise.all([
+  const [openRecord, records, todayShifts, upcomingShiftsRaw, currentUser] = await Promise.all([
     db
       .select()
       .from(attendance)
@@ -90,12 +91,32 @@ export default async function AttendancePage({
       .orderBy(shifts.startTime),
 
     db
+      .select({ date: shifts.date, startTime: shifts.startTime, endTime: shifts.endTime })
+      .from(shifts)
+      .where(
+        and(
+          eq(shifts.userId, session.user.id),
+          eq(shifts.status, "published"),
+          gte(shifts.date, todayStr),
+        ),
+      )
+      .orderBy(asc(shifts.date), asc(shifts.startTime))
+      .limit(20),
+
+    db
       .select({ hourlyRate: user.hourlyRate })
       .from(user)
       .where(eq(user.id, session.user.id))
       .limit(1)
       .then((r) => r[0] ?? null),
   ])
+
+  // Najbližšia zmena = prvá, ktorej začiatok je v budúcnosti
+  const nextShift = upcomingShiftsRaw.find((s) => {
+    const startStr = typeof s.startTime === "string" ? s.startTime.slice(0, 5) : "00:00"
+    const shiftStart = new Date(s.date + "T" + startStr + ":00")
+    return shiftStart > now
+  }) ?? null
 
   const formattedRecords = records.map((r) => {
     const dow = r.clockIn.toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" })
@@ -137,14 +158,25 @@ export default async function AttendancePage({
   const nextMonth = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}`
   const isCurrentMonth = year === now.getFullYear() && monthNum === now.getMonth() + 1
 
+  const nextShiftLabel = nextShift
+    ? (() => {
+        const d = new Date(nextShift.date + "T12:00:00")
+        const dateLabel = d.toLocaleDateString("sk-SK", { weekday: "short", day: "numeric", month: "numeric" })
+        const start = typeof nextShift.startTime === "string" ? nextShift.startTime.slice(0, 5) : "–"
+        const end = typeof nextShift.endTime === "string" ? nextShift.endTime.slice(0, 5) : "–"
+        return { date: nextShift.date, dateLabel, start, end }
+      })()
+    : null
+
   return (
-    <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
+    <DashboardPage>
       <h1 className="text-2xl font-semibold">Dochádzka</h1>
 
       <ClockCard
         isActive={!!openRecord}
         clockInTime={openRecord?.clockIn.toISOString() ?? null}
         scheduledShifts={todayShifts}
+        nextShift={nextShiftLabel}
       />
 
       <AttendanceTable
@@ -160,6 +192,6 @@ export default async function AttendancePage({
         monthlyWage={monthlyWage}
         hourlyRate={hourlyRate}
       />
-    </div>
+    </DashboardPage>
   )
 }

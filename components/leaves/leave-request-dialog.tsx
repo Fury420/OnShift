@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -9,8 +11,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DateRangePicker } from "@/components/ui/date-picker"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -47,6 +49,7 @@ interface Props {
 }
 
 export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shiftId, shiftLabel, colleagues }: Props) {
+  const router = useRouter()
   const isEdit = !!leave
   const [type, setType] = useState<"vacation" | "sick" | "personal">("vacation")
   const [startDate, setStartDate] = useState("")
@@ -84,20 +87,31 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
       try {
         if (isEdit) {
           await updateLeave(leave.id, { type, startDate, endDate, note })
+          toast.success("Žiadosť bola upravená")
         } else {
-          await requestLeave({ type, startDate, endDate, note })
+          await requestLeave({
+            type,
+            startDate,
+            endDate,
+            note,
+            suggestedReplacementUserId: replacementUserId || undefined,
+          })
           if (shiftId && replacementUserId) {
             await requestReplacement(shiftId, replacementUserId)
           }
+          toast.success("Žiadosť o voľno bola odoslaná")
         }
+        router.refresh()
         onOpenChange(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Nastala chyba")
+        const msg = err instanceof Error ? err.message : "Nastala chyba"
+        setError(msg)
+        toast.error(msg)
       }
     })
   }
 
-  const showReplacementPicker = !isEdit && !!shiftId && !!colleagues?.length
+  const showReplacementPicker = !isEdit && !!colleagues?.length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,33 +130,17 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
               <SelectContent>
                 <SelectItem value="vacation">Dovolenka</SelectItem>
                 <SelectItem value="sick">PN (pracovná neschopnosť)</SelectItem>
-                <SelectItem value="personal">Osobné voľno</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="startDate">Dátum od</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="endDate">Dátum do</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          <DateRangePicker
+            label="Obdobie"
+            valueFrom={startDate}
+            valueTo={endDate}
+            onChangeFrom={setStartDate}
+            onChangeTo={setEndDate}
+          />
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="note">Poznámka (nepovinná)</Label>
@@ -157,7 +155,7 @@ export function LeaveRequestDialog({ open, onOpenChange, leave, defaultDate, shi
           {showReplacementPicker && (
             <div className="flex flex-col gap-1.5">
               <Label>
-                Požiadať o zastup zmeny{shiftLabel ? ` (${shiftLabel})` : ""}{" "}
+                {shiftId ? `Požiadať o zastup zmeny${shiftLabel ? ` (${shiftLabel})` : ""}` : "Navrhnúť zastup (kto môže schváliť žiadosť)"}{" "}
                 <span className="text-muted-foreground font-normal">(nepovinné)</span>
               </Label>
               <Select value={replacementUserId} onValueChange={setReplacementUserId}>

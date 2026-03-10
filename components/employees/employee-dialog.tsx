@@ -21,30 +21,26 @@ import {
 } from "@/components/ui/select"
 import { createEmployee, updateEmployee } from "@/app/actions/employees"
 
+export interface PositionOption {
+  id: string
+  name: string
+}
+
 export interface EmployeeForEdit {
   id: string
   name: string
-  role: "superadmin" | "admin" | "employee"
-  defaultDays: string
+  role: "superadmin" | "admin" | "manager" | "employee"
   color: string
   hourlyRate: number | null
+  positionId: string | null
 }
 
 interface EmployeeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   employee?: EmployeeForEdit
+  positions?: PositionOption[]
 }
-
-const DAYS = [
-  { label: "Po", value: 1 },
-  { label: "Ut", value: 2 },
-  { label: "St", value: 3 },
-  { label: "Št", value: 4 },
-  { label: "Pi", value: 5 },
-  { label: "So", value: 6 },
-  { label: "Ne", value: 0 },
-]
 
 const PRESET_COLORS = [
   "#3b82f6", // blue
@@ -57,15 +53,15 @@ const PRESET_COLORS = [
   "#f97316", // orange
 ]
 
-export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogProps) {
+export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }: EmployeeDialogProps) {
   const isEdit = !!employee
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"admin" | "employee">("employee")
-  const [selectedDays, setSelectedDays] = useState<number[]>([])
+  const [role, setRole] = useState<"admin" | "manager" | "employee">("employee")
   const [color, setColor] = useState(PRESET_COLORS[0])
+  const [positionId, setPositionId] = useState("")
   const [hourlyRate, setHourlyRate] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -75,37 +71,26 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
       setName(employee?.name ?? "")
       setEmail("")
       setPassword("")
-      setRole((employee?.role === "admin" ? "admin" : "employee") as "admin" | "employee")
-      setSelectedDays(
-        employee?.defaultDays
-          ? employee.defaultDays.split(",").map(Number)
-          : [],
-      )
+      setRole((employee?.role === "admin" ? "admin" : employee?.role === "manager" ? "manager" : "employee") as "admin" | "manager" | "employee")
       setColor(employee?.color || PRESET_COLORS[0])
+      setPositionId(employee?.positionId ?? "")
       setHourlyRate(employee?.hourlyRate != null ? String(employee.hourlyRate) : "")
       setError("")
     }
   }, [open, employee])
 
-  function toggleDay(day: number) {
-    setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
-    )
-  }
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
 
-    const defaultDays = selectedDays.join(",")
     const parsedRate = hourlyRate !== "" ? parseFloat(hourlyRate) : null
 
     startTransition(async () => {
       try {
         if (isEdit) {
-          await updateEmployee(employee.id, { name, role, defaultDays, color, hourlyRate: parsedRate })
+          await updateEmployee(employee.id, { name, role, color, hourlyRate: parsedRate, positionId: positionId || null })
         } else {
-          await createEmployee({ name, email, password, role, defaultDays, color, hourlyRate: parsedRate })
+          await createEmployee({ name, email, password, role, color, hourlyRate: parsedRate, positionId: positionId || null })
         }
         onOpenChange(false)
       } catch (err) {
@@ -166,16 +151,34 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="role">Rola</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as "admin" | "employee")}>
+            <Select value={role} onValueChange={(v) => setRole(v as "admin" | "manager" | "employee")}>
               <SelectTrigger id="role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="employee">Zamestnanec</SelectItem>
+                <SelectItem value="manager">Manažér</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {positions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="position">Pozícia</Label>
+              <Select value={positionId || "none"} onValueChange={(v) => setPositionId(v === "none" ? "" : v)}>
+                <SelectTrigger id="position">
+                  <SelectValue placeholder="Bez pozície" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Bez pozície</SelectItem>
+                  {positions.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label>Farba v kalendári</Label>
@@ -215,30 +218,6 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
               onChange={(e) => setHourlyRate(e.target.value)}
               placeholder="napr. 7.50"
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Predvolené pracovné dni</Label>
-            <div className="flex gap-1.5">
-              {DAYS.map(({ label, value }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => toggleDay(value)}
-                  className={cn(
-                    "flex h-8 w-9 items-center justify-center rounded text-xs font-medium transition-colors",
-                    selectedDays.includes(value)
-                      ? "bg-primary text-primary-foreground"
-                      : "border hover:bg-muted",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Používa sa pri automatickom generovaní týždenného plánu.
-            </p>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

@@ -5,10 +5,11 @@ import { cookies } from "next/headers"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { UserMenu } from "@/components/user-menu"
+import { NotificationBell } from "@/components/notification-bell"
 import { ImpersonationBanner } from "@/components/impersonation-banner"
 import { getSession } from "@/lib/session"
 import { db } from "@/db"
-import { shiftReplacements, organizations, userOrganizations } from "@/db/schema"
+import { shiftReplacements, organizations, userOrganizations, leaves } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -46,15 +47,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
       color: sessionUser.color ?? null,
     }
 
-    const pendingReplacements = await db
-      .select({ id: shiftReplacements.id })
-      .from(shiftReplacements)
-      .where(
-        and(
-          eq(shiftReplacements.replacementUserId, session.user.id),
-          eq(shiftReplacements.status, "pending"),
+    const [pendingReplacements, pendingLeaves] = await Promise.all([
+      db
+        .select({ id: shiftReplacements.id })
+        .from(shiftReplacements)
+        .where(
+          and(
+            eq(shiftReplacements.replacementUserId, session.user.id),
+            eq(shiftReplacements.status, "pending"),
+          ),
         ),
-      )
+      db
+        .select({ id: leaves.id })
+        .from(leaves)
+        .where(and(eq(leaves.organizationId, impersonatedOrg.id), eq(leaves.status, "pending"))),
+    ])
 
     return (
       <SidebarProvider className="bg-black p-2 gap-2">
@@ -63,12 +70,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
           orgs={[impersonatedOrg]}
           activeOrgId={impersonatedOrg.id}
           pendingReplacementCount={pendingReplacements.length}
+          pendingLeaveCount={pendingLeaves.length}
         />
         <SidebarInset className="rounded-xl overflow-hidden shadow-sm dark:bg-card">
           <ImpersonationBanner orgName={impersonatedOrg.name} />
           <header className="flex h-12 items-center border-b px-4 gap-2">
             <SidebarTrigger className="md:hidden" />
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationBell />
               <UserMenu user={user} />
             </div>
           </header>
@@ -100,15 +109,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
     color: sessionUser.color ?? null,
   }
 
-  const pendingReplacements = await db
-    .select({ id: shiftReplacements.id })
-    .from(shiftReplacements)
-    .where(
-      and(
-        eq(shiftReplacements.replacementUserId, session.user.id),
-        eq(shiftReplacements.status, "pending"),
+  const [pendingReplacements, pendingLeaves] = await Promise.all([
+    db
+      .select({ id: shiftReplacements.id })
+      .from(shiftReplacements)
+      .where(
+        and(
+          eq(shiftReplacements.replacementUserId, session.user.id),
+          eq(shiftReplacements.status, "pending"),
+        ),
       ),
-    )
+    activeOrg
+      ? db
+          .select({ id: leaves.id })
+          .from(leaves)
+          .where(and(eq(leaves.organizationId, activeOrg.id), eq(leaves.status, "pending")))
+      : Promise.resolve([]),
+  ])
 
   return (
     <SidebarProvider className="bg-black p-2 gap-2">
@@ -117,11 +134,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
         orgs={userOrgs}
         activeOrgId={activeOrg?.id ?? null}
         pendingReplacementCount={pendingReplacements.length}
+        pendingLeaveCount={pendingLeaves.length}
       />
       <SidebarInset className="rounded-xl overflow-hidden shadow-sm dark:bg-card">
         <header className="flex h-12 items-center border-b px-4 gap-2">
           <SidebarTrigger className="md:hidden" />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <NotificationBell />
             <UserMenu user={user} />
           </div>
         </header>

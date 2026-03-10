@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
 import { eq, and, isNull } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import { createNotification } from "@/lib/notifications"
 
 export async function clockIn() {
   const session = await getSession()
@@ -90,10 +91,29 @@ export async function adminUpdateAttendance(id: string, clockIn: string, clockOu
   const session = await requireAdmin()
   const orgId = await getOrganizationId()
 
+  // Get the attendance record's userId before updating
+  const [record] = await db
+    .select({ userId: attendance.userId })
+    .from(attendance)
+    .where(and(eq(attendance.id, id), eq(attendance.organizationId, orgId)))
+    .limit(1)
+
   await db
     .update(attendance)
     .set({ clockIn: new Date(clockIn), clockOut: new Date(clockOut), editedAt: new Date(), editedBy: session.user.id })
     .where(and(eq(attendance.id, id), eq(attendance.organizationId, orgId)))
+
+  if (record) {
+    createNotification({
+      organizationId: orgId,
+      actorId: session.user.id,
+      recipientIds: [record.userId],
+      type: "attendance_edited",
+      title: "Vaša dochádzka bola upravená administrátorom",
+      linkUrl: "/attendance",
+      referenceId: id,
+    }).catch(console.error)
+  }
 
   revalidatePath("/admin/reports")
 }

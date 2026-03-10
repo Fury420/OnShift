@@ -117,6 +117,52 @@ export async function stopImpersonating() {
   cookieStore.delete("impersonateOrgId")
 }
 
+export async function updateOrganizationDetails(data: {
+  name: string
+  ico?: string
+  dic?: string
+  icDph?: string
+  address?: string
+  phone?: string
+  email?: string
+}) {
+  const session = await getSession()
+  if (!session) throw new Error("Neprihlásený")
+
+  const role = (session.user as { role?: string }).role
+  if (role !== "admin" && role !== "superadmin") throw new Error("Nedostatočné oprávnenia")
+
+  const cookieStore = await cookies()
+  let orgId: string | undefined
+
+  if (role === "superadmin") {
+    orgId = cookieStore.get("impersonateOrgId")?.value
+  } else {
+    orgId = (session.user as { organizationId?: string | null }).organizationId ?? undefined
+    const cookieOrgId = cookieStore.get("activeOrgId")?.value
+    if (cookieOrgId) orgId = cookieOrgId
+  }
+
+  if (!orgId) throw new Error("Organizácia nenájdená")
+
+  await db
+    .update(organizations)
+    .set({
+      name: data.name,
+      ico: data.ico || null,
+      dic: data.dic || null,
+      icDph: data.icDph || null,
+      address: data.address || null,
+      phone: data.phone || null,
+      email: data.email || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(organizations.id, orgId))
+
+  revalidatePath("/admin/settings")
+  revalidatePath("/", "layout")
+}
+
 export async function deleteOrganization(id: string) {
   await requireSuperAdmin()
   await db.delete(organizations).where(eq(organizations.id, id))
@@ -125,7 +171,7 @@ export async function deleteOrganization(id: string) {
 
 export async function updateOrganization(
   id: string,
-  data: { name: string; ico?: string; dic?: string; address?: string; phone?: string; email?: string; licenseType?: "free" | "basic" | "pro" },
+  data: { name: string; ico?: string; dic?: string; icDph?: string; address?: string; phone?: string; email?: string; licenseType?: "free" | "basic" | "pro" },
 ) {
   await requireSuperAdmin()
 
@@ -135,6 +181,7 @@ export async function updateOrganization(
       name: data.name,
       ico: data.ico || null,
       dic: data.dic || null,
+      icDph: data.icDph || null,
       address: data.address || null,
       phone: data.phone || null,
       email: data.email || null,

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic"
 import { db } from "@/db"
 import { shiftReplacements, shifts, user } from "@/db/schema"
 import { requireAdmin } from "@/lib/auth-guard"
+import { DashboardPage } from "@/components/dashboard-page"
 import { eq, and } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { AdminReplacementsTable } from "@/components/shift-replacement/admin-replacements-table"
@@ -60,9 +61,9 @@ export default async function AdminZastupPage() {
   }))
 
   return (
-    <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+    <DashboardPage size="wide">
       <h1 className="text-2xl font-semibold">Žiadosti o zastup</h1>
       <AdminReplacementsTable requests={formatted} />
-    </div>
+    </DashboardPage>
   )
 }

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { Check, X, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DateRangePicker } from "@/components/ui/date-picker"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
@@ -226,28 +226,17 @@ export function AdminLeavesTable({ rows }: Props) {
                   <SelectContent>
                     <SelectItem value="vacation">Dovolenka</SelectItem>
                     <SelectItem value="sick">PN (pracovná neschopnosť)</SelectItem>
-                    <SelectItem value="personal">Osobné voľno</SelectItem>
+                    <SelectItem value="personal" disabled>Osobné voľno (neaktívne)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Dátum od</Label>
-                  <Input
-                    type="date"
-                    value={editState.startDate}
-                    onChange={(e) => setEditState({ ...editState, startDate: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Dátum do</Label>
-                  <Input
-                    type="date"
-                    value={editState.endDate}
-                    onChange={(e) => setEditState({ ...editState, endDate: e.target.value })}
-                  />
-                </div>
-              </div>
+              <DateRangePicker
+                label="Obdobie"
+                valueFrom={editState.startDate}
+                valueTo={editState.endDate}
+                onChangeFrom={(v) => setEditState({ ...editState, startDate: v })}
+                onChangeTo={(v) => setEditState({ ...editState, endDate: v })}
+              />
               <div className="flex flex-col gap-1.5">
                 <Label>Poznámka</Label>
                 <Textarea

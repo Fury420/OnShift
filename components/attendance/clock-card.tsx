@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
+import Link from "next/link"
 import { LogIn, LogOut, Clock, CalendarClock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,8 @@ interface ClockCardProps {
   isActive: boolean
   clockInTime: string | null // ISO string
   scheduledShifts: { startTime: string; endTime: string }[]
+  /** Najbližšia zmena – zobrazená vpravo hore v bloku (date = YYYY-MM-DD pre presmerovanie na kalendár) */
+  nextShift?: { date?: string; dateLabel: string; start: string; end: string } | null
 }
 
 function formatElapsed(ms: number) {
@@ -20,7 +23,7 @@ function formatElapsed(ms: number) {
   return [h, m, sec].map((v) => String(v).padStart(2, "0")).join(":")
 }
 
-export function ClockCard({ isActive, clockInTime, scheduledShifts }: ClockCardProps) {
+export function ClockCard({ isActive, clockInTime, scheduledShifts, nextShift }: ClockCardProps) {
   const [elapsed, setElapsed] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -86,12 +89,27 @@ export function ClockCard({ isActive, clockInTime, scheduledShifts }: ClockCardP
             )}
           </div>
 
-          {isActive && elapsed && (
-            <div className="flex items-center gap-2">
-              <Clock className="size-4 text-green-500 shrink-0" />
-              <span className="text-2xl font-mono font-semibold tabular-nums">{elapsed}</span>
-            </div>
-          )}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            {nextShift && (
+              <Link
+                href={nextShift.date ? `/schedule?month=${nextShift.date.slice(0, 7)}&date=${nextShift.date}` : "/schedule"}
+                className="group/next flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 -m-2.5 text-right text-xs text-muted-foreground transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+                title="Prejsť do kalendára na túto zmenu"
+              >
+                <CalendarClock className="size-3.5 shrink-0 opacity-60 group-hover/next:opacity-100 group-hover/next:scale-110 transition-all duration-200" />
+                <span className="flex flex-col">
+                  <span className="font-medium text-foreground group-hover/next:text-primary transition-colors">Najbližšia zmena</span>
+                  <span className="capitalize">{nextShift.dateLabel} {nextShift.start}–{nextShift.end}</span>
+                </span>
+              </Link>
+            )}
+            {isActive && elapsed && (
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-green-500 shrink-0" />
+                <span className="text-2xl font-mono font-semibold tabular-nums">{elapsed}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <Button

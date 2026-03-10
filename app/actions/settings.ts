@@ -53,6 +53,5 @@ export async function updateBusinessHours(data: BusinessHoursInput) {
   }
 
   revalidatePath("/admin/settings")
-  revalidatePath("/admin/schedule")
   revalidatePath("/schedule")
 }

@@ -1,13 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { shiftReplacements, shifts, user, leaves } from "@/db/schema"
+import { shiftReplacements, shifts, user, leaves, openShiftClaims } from "@/db/schema"
 import { getSession } from "@/lib/session"
 import { eq, and, gte, lt, desc, isNull, ne } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { shortTime } from "@/lib/week"
 import { CombinedClient } from "./combined-client"
-
 const TZ = "Europe/Bratislava"
 
 function formatShiftDate(dateStr: string) {
@@ -57,15 +56,20 @@ export default async function ZastupPage({
   const isCurrentMonth = year === now.getFullYear() && monthNum === now.getMonth() + 1
 
   const sessionUser = session.user as { role?: string; organizationId?: string | null }
-  const isAdmin = sessionUser.role === "admin"
+  const isAdmin = sessionUser.role === "admin" || sessionUser.role === "manager"
   const orgId = sessionUser.organizationId!
   const userId = session.user.id
   const requester = alias(user, "requester")
   const replacement = alias(user, "replacement")
 
   const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ })
+  const currentYear = now.getFullYear()
+  const currentMonthNum = now.getMonth() + 1
+  const currentMonthStart = `${currentYear}-${pad(currentMonthNum)}-01`
+  const currentMonthEndDate = new Date(currentYear, currentMonthNum, 1)
+  const currentMonthEnd = `${currentMonthEndDate.getFullYear()}-${pad(currentMonthEndDate.getMonth() + 1)}-01`
 
-  const [myRequests, incomingRequests, allPendingRequests, leavesData, upcomingShiftsRaw, colleaguesRaw] = await Promise.all([
+  const [myRequests, incomingRequests, allPendingRequests, leavesData, assignedShiftsRaw, claimedOpenShiftsRaw, colleaguesRaw, ...rest] = await Promise.all([
     db
       .select({
         id: shiftReplacements.id,
@@ -148,11 +152,61 @@ export default async function ZastupPage({
       .orderBy(shifts.date),
 
     db
+      .select({ id: shifts.id, date: shifts.date, startTime: shifts.startTime, endTime: shifts.endTime })
+      .from(shifts)
+      .innerJoin(openShiftClaims, and(eq(openShiftClaims.shiftId, shifts.id), eq(openShiftClaims.claimedByUserId, userId), eq(openShiftClaims.status, "approved")))
+      .where(and(eq(shifts.organizationId, orgId), eq(shifts.status, "open"), gte(shifts.date, todayStr)))
+      .orderBy(shifts.date),
+
+    db
       .select({ id: user.id, name: user.name })
       .from(user)
-      .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId)))
+      .where(and(eq(user.organizationId, orgId), isNull(user.archivedAt), ne(user.id, userId), ne(user.role, "admin")))
       .orderBy(user.name),
+
+    (async () => {
+      try {
+        return isAdmin
+          ? await db
+              .select({
+                id: leaves.id,
+                userName: user.name,
+                type: leaves.type,
+                startDate: leaves.startDate,
+                endDate: leaves.endDate,
+                status: leaves.status,
+                note: leaves.note,
+              })
+              .from(leaves)
+              .leftJoin(user, eq(leaves.userId, user.id))
+              .where(and(eq(leaves.organizationId, orgId), eq(leaves.status, "pending")))
+              .orderBy(desc(leaves.createdAt))
+          : await db
+              .select({
+                id: leaves.id,
+                userName: user.name,
+                type: leaves.type,
+                startDate: leaves.startDate,
+                endDate: leaves.endDate,
+                status: leaves.status,
+                note: leaves.note,
+              })
+              .from(leaves)
+              .leftJoin(user, eq(leaves.userId, user.id))
+              .where(
+                and(
+                  eq(leaves.organizationId, orgId),
+                  eq(leaves.status, "pending"),
+                  eq(leaves.suggestedReplacementUserId, userId),
+                ),
+              )
+              .orderBy(desc(leaves.createdAt))
+      } catch {
+        return []
+      }
+    })(),
   ])
+  const pendingLeavesRaw = rest[0]
 
   const myFormatted = myRequests.map((r) => ({
     id: r.id,
@@ -184,11 +238,47 @@ export default async function ZastupPage({
       : "",
   }))
 
-  const myShifts = upcomingShiftsRaw.map((s) => {
+  const upcomingShiftsRaw = [...assignedShiftsRaw, ...claimedOpenShiftsRaw]
+  const seenIds = new Set<string>()
+  const deduped = upcomingShiftsRaw
+    .filter((s) => {
+      if (seenIds.has(s.id)) return false
+      seenIds.add(s.id)
+      return true
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+  const myShifts = deduped
+    .filter((s) => s.date >= currentMonthStart && s.date < currentMonthEnd)
+    .map((s) => {
     const [y, m, d] = s.date.split("-").map(Number)
     const dateLabel = new Date(y, m - 1, d).toLocaleDateString("sk-SK", { weekday: "short", day: "numeric", month: "numeric" })
     return { id: s.id, label: `${dateLabel} ${shortTime(s.startTime)}–${shortTime(s.endTime)}` }
   })
+
+  const pendingLeavesRawTyped = pendingLeavesRaw as { id: string; userName: string | null; type: string; startDate: string; endDate: string; status: string; note: string | null }[]
+
+  const pendingLeavesForAdmin = isAdmin
+    ? pendingLeavesRawTyped.map((r) => ({
+        id: r.id,
+        userName: r.userName ?? "—",
+        type: r.type,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        status: r.status,
+        note: r.note ?? null,
+      }))
+    : []
+
+  const leavesToApproveAsReplacement = !isAdmin
+    ? pendingLeavesRawTyped.map((r) => ({
+        id: r.id,
+        userName: r.userName ?? "—",
+        type: r.type,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        note: r.note ?? null,
+      }))
+    : []
 
   return (
     <CombinedClient
@@ -197,6 +287,8 @@ export default async function ZastupPage({
       myRequests={myFormatted}
       incomingRequests={incomingFormatted}
       allPendingRequests={allPendingFormatted}
+      pendingLeavesForAdmin={pendingLeavesForAdmin}
+      leavesToApproveAsReplacement={leavesToApproveAsReplacement}
       monthLabel={monthLabel}
       prevMonth={prevMonth}
       nextMonth={nextMonth}
