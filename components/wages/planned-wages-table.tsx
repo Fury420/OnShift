@@ -46,7 +46,7 @@ export function PlannedWagesTable({ rows }: PlannedWagesTableProps) {
   const hasAnyRate = rows.some((r) => r.hourlyRate != null)
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

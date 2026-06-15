@@ -255,7 +255,7 @@ export default async function AdminReportsPage({
       {allRows.length === 0 ? (
         <p className="text-sm text-muted-foreground">Žiadne záznamy za tento mesiac.</p>
       ) : (
-        <div className="grid grid-cols-2 items-start gap-6">
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
           <AdminAttendanceTable rows={allRows} grandTotal={grandTotal} />
           <Card>
             <CardHeader className="pb-2">

@@ -117,7 +117,7 @@ export function AdminAttendanceTable({ rows, grandTotal }: Props) {
 
   return (
     <>
-      <div className="min-w-0 rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
