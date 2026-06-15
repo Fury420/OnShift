@@ -50,7 +50,7 @@ interface AppSidebarProps {
   pendingLeaveCount?: number
 }
 
-const employeesPaths = ["/admin/employees", "/admin/wages", "/admin/leaves"]
+const employeesPaths = ["/admin/employees", "/admin/leaves"]
 
 export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, pendingLeaveCount = 0 }: AppSidebarProps) {
   const pathname = usePathname()

@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils"
 const TABS = [
   { href: "/admin/employees", label: "Zamestnanci" },
   { href: "/admin/positions", label: "Pozície" },
-  { href: "/admin/wages", label: "Mzdy" },
 ]
 
 export function StaffTabs() {
