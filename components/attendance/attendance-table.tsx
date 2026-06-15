@@ -104,13 +104,19 @@ export function AttendanceTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Dátum</TableHead>
-              <TableHead>Príchod – Odchod</TableHead>
-              <TableHead className="text-right">Odpracované</TableHead>
+              <TableHead>
+                <span className="hidden sm:inline">Príchod – Odchod</span>
+                <span className="sm:hidden">Čas</span>
+              </TableHead>
+              <TableHead className="text-right">
+                <span className="hidden sm:inline">Odpracované</span>
+                <span className="sm:hidden">Hod.</span>
+              </TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
