@@ -68,7 +68,7 @@ export async function updateOwnAttendance(
 
   if (!record) return
 
-  const toUTC = (time: string): Date => {
+  const toUTC = (time: string, extraDays = 0): Date => {
     const probe = new Date(`${dateStr}T12:00:00Z`)
     const bratislavaHour = parseInt(
       probe.toLocaleString("en-US", { timeZone: "Europe/Bratislava", hour: "numeric", hour12: false })
@@ -76,12 +76,19 @@ export async function updateOwnAttendance(
     const offset = bratislavaHour - 12
     const [h, m] = time.split(":").map(Number)
     const [y, mo, d] = dateStr.split("-").map(Number)
-    return new Date(Date.UTC(y, mo - 1, d, h - offset, m, 0, 0))
+    return new Date(Date.UTC(y, mo - 1, d + extraDays, h - offset, m, 0, 0))
+  }
+
+  const clockInUTC = toUTC(newClockIn)
+  let clockOutUTC = toUTC(newClockOut)
+  // If clockOut is before clockIn, the shift crossed midnight — add 1 day
+  if (clockOutUTC <= clockInUTC) {
+    clockOutUTC = toUTC(newClockOut, 1)
   }
 
   await db
     .update(attendance)
-    .set({ clockIn: toUTC(newClockIn), clockOut: toUTC(newClockOut), note: note || null, editedAt: new Date(), editedBy: session.user.id })
+    .set({ clockIn: clockInUTC, clockOut: clockOutUTC, note: note || null, editedAt: new Date(), editedBy: session.user.id })
     .where(eq(attendance.id, id))
 
   revalidatePath("/attendance")
