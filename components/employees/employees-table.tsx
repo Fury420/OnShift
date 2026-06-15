@@ -129,7 +129,7 @@ export function EmployeesTable({ employees, currentUserId, positions }: Employee
         </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -645,24 +645,25 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
           {!isAdmin && (
             <Button size="sm" variant="outline" onClick={() => setLeaveDialogOpen(true)}>
               <Palmtree className="size-4" />
-              Žiadosť o dovolenku
+              <span className="hidden sm:inline">Žiadosť o dovolenku</span>
             </Button>
           )}
           {isAdmin && allDraftIds.length > 0 && (
             <>
               <Button variant="secondary" size="sm" onClick={() => startTransition(() => publishDraftShifts(allDraftIds))} disabled={isPending}>
                 <Send className="size-4" />
-                Publikovať všetky ({allDraftIds.length})
+                <span className="hidden sm:inline">Publikovať všetky ({allDraftIds.length})</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => startTransition(() => deleteAllDraftShifts(allDraftIds))} disabled={isPending} className="text-destructive hover:text-destructive">
-                Vymazať koncepty
+                <Trash2 className="size-4" />
+                <span className="hidden sm:inline">Vymazať koncepty</span>
               </Button>
             </>
           )}
           {isAdmin && (
             <Button size="sm" onClick={() => openCreateDialog()}>
               <Plus className="size-4" />
-              Nová zmena
+              <span className="hidden sm:inline">Nová zmena</span>
             </Button>
           )}
           <div className="flex rounded-md border p-0.5 gap-0.5">

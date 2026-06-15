@@ -53,7 +53,7 @@ export function ApproveAsReplacementTable({ rows }: { rows: LeaveToApproveRow[] 
   if (rows.length === 0) return null
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
