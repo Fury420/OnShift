@@ -81,8 +81,9 @@ export async function updateOwnAttendance(
 
   const clockInUTC = toUTC(newClockIn)
   let clockOutUTC = toUTC(newClockOut)
-  // If clockOut is before clockIn, the shift crossed midnight — add 1 day
-  if (clockOutUTC <= clockInUTC) {
+  // If clockOut is strictly before clockIn, the shift crossed midnight — add 1 day.
+  // Equal times (e.g. quick clock in/out within the same minute) must stay 0h, not 24h.
+  if (clockOutUTC < clockInUTC) {
     clockOutUTC = toUTC(newClockOut, 1)
   }
 
