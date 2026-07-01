@@ -16,7 +16,8 @@ export interface PlannedWagesRow {
   name: string
   color: string | null
   totalMinutes: number
-  hourlyRate: number | null
+  hourlyRate: number | null // sadzba platná ku koncu mesiaca (na zobrazenie)
+  wage: number              // presný odhad mzdy po dňoch podľa histórie sadzieb
 }
 
 interface PlannedWagesTableProps {
@@ -38,12 +39,9 @@ function formatWage(amount: number): string {
 }
 
 export function PlannedWagesTable({ rows }: PlannedWagesTableProps) {
-  const totalWage = rows.reduce((sum, r) => {
-    if (r.hourlyRate == null) return sum
-    return sum + (r.totalMinutes / 60) * r.hourlyRate
-  }, 0)
+  const totalWage = rows.reduce((sum, r) => sum + r.wage, 0)
 
-  const hasAnyRate = rows.some((r) => r.hourlyRate != null)
+  const hasAnyRate = rows.some((r) => r.hourlyRate != null || r.wage > 0)
 
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -65,7 +63,7 @@ export function PlannedWagesTable({ rows }: PlannedWagesTableProps) {
             </TableRow>
           ) : (
             rows.map((r) => {
-              const wage = r.hourlyRate != null ? (r.totalMinutes / 60) * r.hourlyRate : null
+              const hasWage = r.hourlyRate != null || r.wage > 0
               return (
                 <TableRow key={r.userId}>
                   <TableCell>
@@ -90,7 +88,7 @@ export function PlannedWagesTable({ rows }: PlannedWagesTableProps) {
                       : "—"}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {wage != null ? formatWage(wage) : "—"}
+                    {hasWage ? formatWage(r.wage) : "—"}
                   </TableCell>
                 </TableRow>
               )

@@ -31,7 +31,6 @@ export interface EmployeeForEdit {
   name: string
   role: "superadmin" | "admin" | "manager" | "employee"
   color: string
-  hourlyRate: number | null
   positionId: string | null
 }
 
@@ -63,6 +62,7 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
   const [color, setColor] = useState(PRESET_COLORS[0])
   const [positionId, setPositionId] = useState("")
   const [hourlyRate, setHourlyRate] = useState("")
+  const [effectiveFrom, setEffectiveFrom] = useState("")
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
@@ -74,7 +74,8 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
       setRole((employee?.role === "admin" ? "admin" : employee?.role === "manager" ? "manager" : "employee") as "admin" | "manager" | "employee")
       setColor(employee?.color || PRESET_COLORS[0])
       setPositionId(employee?.positionId ?? "")
-      setHourlyRate(employee?.hourlyRate != null ? String(employee.hourlyRate) : "")
+      setHourlyRate("")
+      setEffectiveFrom(new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Bratislava" }))
       setError("")
     }
   }, [open, employee])
@@ -88,9 +89,9 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
     startTransition(async () => {
       try {
         if (isEdit) {
-          await updateEmployee(employee.id, { name, role, color, hourlyRate: parsedRate, positionId: positionId || null })
+          await updateEmployee(employee.id, { name, role, color, positionId: positionId || null })
         } else {
-          await createEmployee({ name, email, password, role, color, hourlyRate: parsedRate, positionId: positionId || null })
+          await createEmployee({ name, email, password, role, color, hourlyRate: parsedRate, effectiveFrom: effectiveFrom || null, positionId: positionId || null })
         }
         onOpenChange(false)
       } catch (err) {
@@ -207,18 +208,37 @@ export function EmployeeDialog({ open, onOpenChange, employee, positions = [] }:
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="hourlyRate">Hodinová sadzba (€/h)</Label>
-            <Input
-              id="hourlyRate"
-              type="number"
-              min={0}
-              step={0.01}
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-              placeholder="napr. 7.50"
-            />
-          </div>
+          {!isEdit && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="hourlyRate">Hodinová sadzba (€/h)</Label>
+                <Input
+                  id="hourlyRate"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={hourlyRate}
+                  onChange={(e) => setHourlyRate(e.target.value)}
+                  placeholder="napr. 7.50"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="effectiveFrom">Platí od</Label>
+                <Input
+                  id="effectiveFrom"
+                  type="date"
+                  value={effectiveFrom}
+                  onChange={(e) => setEffectiveFrom(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {isEdit && (
+            <p className="text-xs text-muted-foreground">
+              Hodinovú mzdu a jej platnosť od dátumu spravujte cez akciu „Mzda“ v zozname zamestnancov.
+            </p>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

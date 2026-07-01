@@ -2,10 +2,11 @@
 
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
-import { user, userOrganizations } from "@/db/schema"
+import { user, userOrganizations, wageRates } from "@/db/schema"
 import { eq, and } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { requireAdmin, getOrganizationId } from "@/lib/auth-guard"
+import { localDateStr } from "@/lib/wages"
 
 export async function createEmployee(data: {
   name: string
@@ -14,6 +15,7 @@ export async function createEmployee(data: {
   role: "admin" | "manager" | "employee"
   color: string
   hourlyRate?: number | null
+  effectiveFrom?: string | null
   positionId?: string | null
 }) {
   await requireAdmin()
@@ -45,23 +47,34 @@ export async function createEmployee(data: {
     .values({ userId: result.user.id, organizationId: orgId })
     .onConflictDoNothing()
 
+  // Počiatočná sadzba → prvý záznam histórie (platí od zadaného dátumu, default dnes)
+  if (data.hourlyRate != null) {
+    await db.insert(wageRates).values({
+      organizationId: orgId,
+      userId: result.user.id,
+      hourlyRate: String(data.hourlyRate),
+      effectiveFrom: data.effectiveFrom || localDateStr(new Date()),
+    })
+  }
+
   revalidatePath("/admin/employees")
 }
 
 export async function updateEmployee(
   id: string,
-  data: { name: string; role: "admin" | "manager" | "employee"; color: string; hourlyRate?: number | null; positionId?: string | null },
+  data: { name: string; role: "admin" | "manager" | "employee"; color: string; positionId?: string | null },
 ) {
   await requireAdmin()
   const orgId = await getOrganizationId()
 
+  // Pozn.: mzda (hourlyRate) sa už nemení tu — spravuje sa cez históriu sadzieb
+  // (app/actions/wage-rates.ts), aby mala dátum účinnosti.
   await db
     .update(user)
     .set({
       name: data.name,
       role: data.role,
       color: data.color || null,
-      hourlyRate: data.hourlyRate != null ? String(data.hourlyRate) : null,
       positionId: data.positionId || null,
       updatedAt: new Date(),
     })

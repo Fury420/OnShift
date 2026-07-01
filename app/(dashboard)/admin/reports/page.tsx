@@ -15,6 +15,7 @@ import { AdminAttendanceTable } from "@/components/reports/admin-attendance-tabl
 import { ReportsTabs } from "@/components/reports/reports-tabs"
 import { WagesTable } from "@/components/wages/wages-table"
 import { PlannedWagesTable } from "@/components/wages/planned-wages-table"
+import { getRateHistory, rateOn, localDateStr } from "@/lib/wages"
 
 const TZ = "Europe/Bratislava"
 
@@ -112,13 +113,12 @@ export default async function AdminReportsPage({
       return h * 60 + m
     }
 
-    const [records, monthShifts] = await Promise.all([
+    const [records, monthShifts, rateHistory] = await Promise.all([
       db
         .select({
           userId: attendance.userId,
           userName: user.name,
           userColor: user.color,
-          userHourlyRate: user.hourlyRate,
           clockIn: attendance.clockIn,
           clockOut: attendance.clockOut,
         })
@@ -139,7 +139,7 @@ export default async function AdminReportsPage({
           userId: shifts.userId,
           userName: user.name,
           userColor: user.color,
-          userHourlyRate: user.hourlyRate,
+          date: shifts.date,
           startTime: shifts.startTime,
           endTime: shifts.endTime,
         })
@@ -154,29 +154,50 @@ export default async function AdminReportsPage({
           ),
         )
         .orderBy(asc(user.name)),
+
+      getRateHistory(orgId),
     ])
 
-    const wagesMap = new Map<string, { name: string; color: string | null; hourlyRate: number | null; totalMinutes: number }>()
+    // Sadzba pre daný deň sa vyhľadá v histórii; zobrazená "Sadzba" = sadzba platná ku koncu mesiaca.
+    type WageAgg = { name: string; color: string | null; hourlyRate: number | null; totalMinutes: number; wage: number }
+
+    const wagesMap = new Map<string, WageAgg>()
     for (const r of records) {
       if (!r.clockOut) continue
       const minutes = roundTo15(r.clockOut.getTime() - r.clockIn.getTime())
-      const rate = r.userHourlyRate != null ? parseFloat(r.userHourlyRate) : null
       if (!wagesMap.has(r.userId)) {
-        wagesMap.set(r.userId, { name: r.userName ?? "—", color: r.userColor ?? null, hourlyRate: rate, totalMinutes: 0 })
+        wagesMap.set(r.userId, {
+          name: r.userName ?? "—",
+          color: r.userColor ?? null,
+          hourlyRate: rateOn(rateHistory.get(r.userId), lastOfMonth),
+          totalMinutes: 0,
+          wage: 0,
+        })
       }
-      wagesMap.get(r.userId)!.totalMinutes += minutes
+      const agg = wagesMap.get(r.userId)!
+      agg.totalMinutes += minutes
+      const rate = rateOn(rateHistory.get(r.userId), localDateStr(r.clockIn))
+      if (rate != null) agg.wage += (minutes / 60) * rate
     }
 
-    const plannedMap = new Map<string, { name: string; color: string | null; hourlyRate: number | null; totalMinutes: number }>()
+    const plannedMap = new Map<string, WageAgg>()
     for (const s of monthShifts) {
       if (!s.userId || !s.startTime || !s.endTime) continue
       const minutes = timeToMinutes(s.endTime) - timeToMinutes(s.startTime)
       if (minutes <= 0) continue
-      const rate = s.userHourlyRate != null ? parseFloat(s.userHourlyRate) : null
       if (!plannedMap.has(s.userId)) {
-        plannedMap.set(s.userId, { name: s.userName ?? "—", color: s.userColor ?? null, hourlyRate: rate, totalMinutes: 0 })
+        plannedMap.set(s.userId, {
+          name: s.userName ?? "—",
+          color: s.userColor ?? null,
+          hourlyRate: rateOn(rateHistory.get(s.userId), lastOfMonth),
+          totalMinutes: 0,
+          wage: 0,
+        })
       }
-      plannedMap.get(s.userId)!.totalMinutes += minutes
+      const agg = plannedMap.get(s.userId)!
+      agg.totalMinutes += minutes
+      const rate = rateOn(rateHistory.get(s.userId), s.date)
+      if (rate != null) agg.wage += (minutes / 60) * rate
     }
 
     const rows = Array.from(wagesMap.entries()).map(([userId, v]) => ({ userId, ...v }))

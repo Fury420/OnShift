@@ -92,6 +92,31 @@ export const user = pgTable("user", {
   updatedAt: timestamp("updated_at").notNull(),
 })
 
+// ─── Wage rates (história hodinových sadzieb) ─────────────────────────────────
+// Každý riadok = "od tohto dňa (vrátane) platí táto sadzba". Sadzba platná pre deň D =
+// záznam s najväčším effectiveFrom <= D. Toto je zdroj pravdy; user.hourlyRate je iba cache
+// dnes platnej sadzby.
+export const wageRates = pgTable(
+  "wage_rates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }).notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_wage_rates_user_from").on(t.userId, t.effectiveFrom),
+    unique().on(t.userId, t.effectiveFrom),
+  ],
+)
+
 export const session = pgTable("session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at").notNull(),

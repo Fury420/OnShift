@@ -1,12 +1,13 @@
 export const dynamic = "force-dynamic"
 
 import { db } from "@/db"
-import { attendance, shifts, user } from "@/db/schema"
+import { attendance, shifts } from "@/db/schema"
 import { getSession } from "@/lib/session"
 import { eq, and, isNull, gte, lt, asc } from "drizzle-orm"
 import { DashboardPage } from "@/components/dashboard-page"
 import { ClockCard } from "@/components/attendance/clock-card"
 import { AttendanceTable } from "@/components/attendance/attendance-table"
+import { getRateHistory, rateOn, localDateStr, type RatePoint } from "@/lib/wages"
 
 const TZ = "Europe/Bratislava"
 
@@ -49,6 +50,8 @@ export default async function AttendancePage({
   const session = await getSession()
   if (!session) return null
 
+  const orgId = (session.user as { organizationId?: string | null }).organizationId ?? null
+
   const now = new Date()
   let year: number, monthNum: number
 
@@ -64,7 +67,7 @@ export default async function AttendancePage({
   const todayStr = now.toLocaleDateString("en-CA", { timeZone: TZ }) // YYYY-MM-DD
   console.log("[attendance] todayStr:", todayStr, "userId:", session.user.id)
 
-  const [openRecord, records, todayShifts, upcomingShiftsRaw, currentUser] = await Promise.all([
+  const [openRecord, records, todayShifts, upcomingShiftsRaw, rateHistory] = await Promise.all([
     db
       .select()
       .from(attendance)
@@ -103,12 +106,9 @@ export default async function AttendancePage({
       .orderBy(asc(shifts.date), asc(shifts.startTime))
       .limit(20),
 
-    db
-      .select({ hourlyRate: user.hourlyRate })
-      .from(user)
-      .where(eq(user.id, session.user.id))
-      .limit(1)
-      .then((r) => r[0] ?? null),
+    orgId
+      ? getRateHistory(orgId, [session.user.id])
+      : Promise.resolve(new Map<string, RatePoint[]>()),
   ])
 
   // Najbližšia zmena = prvá, ktorej začiatok je v budúcnosti
@@ -143,8 +143,19 @@ export default async function AttendancePage({
     return sum + (r.clockOut.getTime() - r.clockIn.getTime())
   }, 0)
 
-  const hourlyRate = currentUser?.hourlyRate != null ? parseFloat(currentUser.hourlyRate) : null
-  const monthlyWage = hourlyRate != null ? (totalMinutes / 60) * hourlyRate : null
+  // Mzda za mesiac = súčet po dňoch (sadzba platná pre deň každého záznamu podľa histórie).
+  const userRates = rateHistory.get(session.user.id)
+  const pad2 = (n: number) => String(n).padStart(2, "0")
+  const lastOfMonth = `${year}-${pad2(monthNum)}-${pad2(new Date(year, monthNum, 0).getDate())}`
+  const hourlyRate = rateOn(userRates, lastOfMonth) // sadzba ku koncu mesiaca (label)
+
+  let monthlyWage: number | null = null
+  for (const r of records) {
+    if (!r.clockOut) continue
+    const minutes = roundTo15(r.clockOut.getTime() - r.clockIn.getTime())
+    const rate = rateOn(userRates, localDateStr(r.clockIn))
+    if (rate != null) monthlyWage = (monthlyWage ?? 0) + (minutes / 60) * rate
+  }
 
   const monthLabel = new Date(year, monthNum - 1).toLocaleDateString("sk-SK", {
     month: "long",

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MoreHorizontal, Plus, UserCog, Archive, ArchiveRestore, Trash2 } from "lucide-react"
+import { MoreHorizontal, Plus, UserCog, Archive, ArchiveRestore, Trash2, Coins } from "lucide-react"
 import { StaffTabs } from "@/components/admin/staff-tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EmployeeDialog, type EmployeeForEdit } from "./employee-dialog"
+import { WageDialog, type WageRateItem } from "./wage-dialog"
 import { archiveEmployee, unarchiveEmployee, deleteEmployee } from "@/app/actions/employees"
 
 export interface PositionOption {
@@ -45,7 +46,8 @@ export interface Employee {
   email: string
   role: "superadmin" | "admin" | "manager" | "employee"
   color: string
-  hourlyRate: number | null
+  hourlyRate: number | null // dnes platná sadzba (na zobrazenie v stĺpci Sadzba)
+  wageHistory: WageRateItem[]
   positionId: string | null
   positionName: string | null
   isArchived: boolean
@@ -67,9 +69,13 @@ type DialogType = "archive" | "delete" | null
 export function EmployeesTable({ employees, currentUserId, positions }: EmployeesTableProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<EmployeeForEdit | undefined>()
+  const [wageTargetId, setWageTargetId] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<{ emp: Employee; type: DialogType }>({ emp: null!, type: null })
   const [showArchived, setShowArchived] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // Cieľ dialógu Mzda čítame priamo z aktuálneho zoznamu → po revalidácii sa história obnoví.
+  const wageTarget = wageTargetId ? employees.find((e) => e.id === wageTargetId) ?? null : null
 
   function openCreate() {
     setEditing(undefined)
@@ -77,7 +83,7 @@ export function EmployeesTable({ employees, currentUserId, positions }: Employee
   }
 
   function openEdit(emp: Employee) {
-    setEditing({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, hourlyRate: emp.hourlyRate, positionId: emp.positionId })
+    setEditing({ id: emp.id, name: emp.name, role: emp.role, color: emp.color, positionId: emp.positionId })
     setDialogOpen(true)
   }
 
@@ -199,6 +205,10 @@ export function EmployeesTable({ employees, currentUserId, positions }: Employee
                             <DropdownMenuItem onClick={() => openEdit(emp)}>
                               Upraviť
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setWageTargetId(emp.id)}>
+                              <Coins className="size-4" />
+                              Mzda
+                            </DropdownMenuItem>
                             {emp.id !== currentUserId && (
                               <>
                                 <DropdownMenuSeparator />
@@ -241,6 +251,16 @@ export function EmployeesTable({ employees, currentUserId, positions }: Employee
       </div>
 
       <EmployeeDialog open={dialogOpen} onOpenChange={setDialogOpen} employee={editing} positions={positions} />
+
+      {wageTarget && (
+        <WageDialog
+          open={!!wageTargetId}
+          onOpenChange={(o) => { if (!o) setWageTargetId(null) }}
+          userId={wageTarget.id}
+          userName={wageTarget.name}
+          history={wageTarget.wageHistory}
+        />
+      )}
 
       <AlertDialog
         open={!!confirmTarget.type}
