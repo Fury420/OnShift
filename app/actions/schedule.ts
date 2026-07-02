@@ -239,6 +239,19 @@ export async function claimShift(shiftId: string) {
   // Check for time conflict
   await checkConflict(userId, shift.date, shift.startTime, shift.endTime)
 
+  // Jednomiestna zmena (max_claims = 1): obsadením sa rovno priradí zamestnancovi
+  // a publikuje → počíta sa do miezd/odhadu a dá sa normálne editovať. Nezostáva ako open+claim.
+  if (shift.maxClaims === 1) {
+    const assigned = await db
+      .update(shifts)
+      .set({ userId, status: "published", updatedAt: new Date() })
+      .where(and(eq(shifts.id, shiftId), eq(shifts.organizationId, orgId), eq(shifts.status, "open")))
+      .returning({ id: shifts.id })
+    if (assigned.length === 0) throw new Error("Zmena už nie je dostupná")
+    revalidateSchedule()
+    return
+  }
+
   // Check if user already claimed this shift
   const [existingClaim] = await db
     .select({ id: openShiftClaims.id })
