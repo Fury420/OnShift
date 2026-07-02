@@ -93,7 +93,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [positionId, setPositionId] = useState("")
-  const [maxClaims, setMaxClaims] = useState(1)
+  const [count, setCount] = useState(1)
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
   const [leavesInRange, setLeavesInRange] = useState<{ startDate: string; endDate: string; type: string }[]>([])
@@ -137,7 +137,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
         setStartTime(shift.startTime?.slice(0, 5) ?? "16:00")
         setEndTime(shift.endTime?.slice(0, 5) ?? "21:00")
         setPositionId(shift.positionId ?? "")
-        setMaxClaims(shift.maxClaims ?? 1)
+        setCount(1)
       } else {
         setUserId(fixedUserId ?? OPEN_SHIFT_VALUE)
         setFrequency("once")
@@ -148,7 +148,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
         setStartTime(defaultStartTime ?? "16:00")
         setEndTime(defaultEndTime ?? "21:00")
         setPositionId("")
-        setMaxClaims(1)
+        setCount(1)
       }
       setError("")
     }
@@ -219,7 +219,6 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
             date,
             startTime,
             endTime,
-            maxClaims: resolvedUserId ? 1 : maxClaims,
           })
         } else if (frequency === "once") {
           await createShift({
@@ -228,7 +227,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
             date,
             startTime,
             endTime,
-            maxClaims: resolvedUserId ? 1 : maxClaims,
+            count: resolvedUserId ? 1 : count,
           })
         } else {
           const days = selectedDays.length > 0 ? selectedDays : [0, 1, 2, 3, 4, 5, 6]
@@ -240,7 +239,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
             days,
             startTime,
             endTime,
-            maxClaims: resolvedUserId ? 1 : maxClaims,
+            count: resolvedUserId ? 1 : count,
           })
         }
         router.refresh()
@@ -407,19 +406,22 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
             </div>
           )}
 
-          {/* Max claims — only for open shifts */}
-          {isOpenShift && (
+          {/* Počet ľudí — len pri vytváraní neobsadenej zmeny (vytvorí N samostatných slotov) */}
+          {isOpenShift && !isEdit && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="maxClaims">Počet miest</Label>
+              <Label htmlFor="count">Počet ľudí</Label>
               <Input
-                id="maxClaims"
+                id="count"
                 type="number"
                 min={1}
                 max={20}
-                value={maxClaims}
-                onChange={(e) => setMaxClaims(Math.max(1, parseInt(e.target.value) || 1))}
+                value={count}
+                onChange={(e) => setCount(Math.max(1, parseInt(e.target.value) || 1))}
                 className="w-24"
               />
+              <p className="text-xs text-muted-foreground">
+                Vytvorí sa {count > 1 ? `${count} voľných slotov` : "1 voľný slot"} — zamestnanci sa naň prihlásia a zmena sa im rovno priradí.
+              </p>
             </div>
           )}
 

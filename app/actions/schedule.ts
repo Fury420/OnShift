@@ -61,7 +61,7 @@ export async function createShift(data: {
   startTime: string
   endTime: string
   note?: string
-  maxClaims?: number
+  count?: number // počet ľudí (len pri neobsadenej zmene) → vytvorí N samostatných slotov
 }) {
   await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
@@ -72,7 +72,9 @@ export async function createShift(data: {
     }
   }
 
-  await db.insert(shifts).values({
+  // Neobsadená zmena môže mať N slotov (N ľudí) — každý slot = 1 samostatná zmena (maxClaims=1).
+  const count = data.userId ? 1 : Math.max(1, data.count ?? 1)
+  const row = {
     organizationId: orgId,
     userId: data.userId ?? null,
     positionId: data.positionId ?? null,
@@ -80,9 +82,10 @@ export async function createShift(data: {
     startTime: data.startTime,
     endTime: data.endTime,
     note: data.note || null,
-    maxClaims: data.maxClaims ?? 1,
-    status: "draft",
-  })
+    maxClaims: 1,
+    status: "draft" as const,
+  }
+  await db.insert(shifts).values(Array.from({ length: count }, () => ({ ...row })))
 
   revalidateSchedule()
 }
@@ -99,11 +102,12 @@ export async function createShiftsBatch(data: {
   startTime: string
   endTime: string
   note?: string
-  maxClaims?: number
+  count?: number // počet ľudí (len pri neobsadenej zmene) → N slotov na každý deň
 }) {
   await requireManagerOrAdmin()
   const orgId = await getOrganizationId()
 
+  const count = data.userId ? 1 : Math.max(1, data.count ?? 1)
   const excluded = new Set(data.excludeDates ?? [])
 
   const [fy, fm, fd] = data.dateFrom.split("-").map(Number)
@@ -132,7 +136,7 @@ export async function createShiftsBatch(data: {
           continue
         }
       }
-      await db.insert(shifts).values({
+      const row = {
         organizationId: orgId,
         userId: data.userId ?? null,
         positionId: data.positionId ?? null,
@@ -140,10 +144,11 @@ export async function createShiftsBatch(data: {
         startTime: data.startTime,
         endTime: data.endTime,
         note: data.note || null,
-        maxClaims: data.maxClaims ?? 1,
-        status: "draft",
-      })
-      created++
+        maxClaims: 1,
+        status: "draft" as const,
+      }
+      await db.insert(shifts).values(Array.from({ length: count }, () => ({ ...row })))
+      created += count
     }
     cur = addDays(cur, 1)
   }
