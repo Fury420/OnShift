@@ -336,8 +336,11 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
       const idx = weeks.findIndex((w) => w.some((d) => d.date === today))
       setWeekIdx(idx >= 0 ? idx : weeks.findIndex((w) => w.some((d) => d.isCurrentMonth)) ?? 0)
     }
-  // monthLabel ensures effect fires on month navigation even when initialWeek value stays the same
-  }, [initialDate, initialWeek, weeks.length, weeks, monthLabel])
+  // Reaguj len na skutočnú navigáciu (initialDate/initialWeek/mesiac), NIE na refresh dát.
+  // `weeks` zámerne nie je v závislostiach — inak by router.refresh() po uložení editu
+  // resetol zobrazený týždeň na dnešný. monthLabel pokrýva zmenu mesiaca.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDate, initialWeek, monthLabel])
 
   useEffect(() => {
     if (view !== "week") return
