@@ -61,6 +61,12 @@ export interface PositionOption {
   name: string
 }
 
+export interface BusinessHoursMap {
+  isClosed: boolean
+  openTime: string | null
+  closeTime: string | null
+}
+
 interface ShiftDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -71,6 +77,8 @@ interface ShiftDialogProps {
   defaultStartTime?: string
   defaultEndTime?: string
   fixedUserId?: string
+  /** dayOfWeek "0".."6" (0=Ne) → otváracie hodiny; použije sa na predvyplnenie časov */
+  businessHours?: ReadonlyMap<string, BusinessHoursMap>
 }
 
 function toDateStr(d: Date): string {
@@ -80,9 +88,29 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export function ShiftDialog({ open, onOpenChange, employees, positions = [], shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId }: ShiftDialogProps) {
+export function ShiftDialog({ open, onOpenChange, employees, positions = [], shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId, businessHours }: ShiftDialogProps) {
   const isEdit = !!shift
   const router = useRouter()
+
+  // Otváracie hodiny pre konkrétny deň (podľa dňa v týždni), inak prvý otvorený deň
+  function hoursForDate(dateStr?: string): { open: string; close: string } | null {
+    if (!dateStr || !businessHours) return null
+    const key = String(new Date(dateStr + "T12:00:00").getDay())
+    const bh = businessHours.get(key)
+    if (bh && !bh.isClosed && bh.openTime && bh.closeTime) {
+      return { open: bh.openTime.slice(0, 5), close: bh.closeTime.slice(0, 5) }
+    }
+    return null
+  }
+  function defaultBusinessHours(): { open: string; close: string } | null {
+    if (!businessHours) return null
+    for (const bh of businessHours.values()) {
+      if (!bh.isClosed && bh.openTime && bh.closeTime) {
+        return { open: bh.openTime.slice(0, 5), close: bh.closeTime.slice(0, 5) }
+      }
+    }
+    return null
+  }
 
   const [userId, setUserId] = useState("")
   const [frequency, setFrequency] = useState<"once" | "weekly">("once")
@@ -92,6 +120,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
   const [validUntil, setValidUntil] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
+  const [timesEdited, setTimesEdited] = useState(false)
   const [positionId, setPositionId] = useState("")
   const [count, setCount] = useState(1)
   const [error, setError] = useState("")
@@ -145,14 +174,24 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
         setSelectedDays([])
         setValidFrom("")
         setValidUntil("")
-        setStartTime(defaultStartTime ?? "16:00")
-        setEndTime(defaultEndTime ?? "21:00")
+        const bh = hoursForDate(defaultDate) ?? defaultBusinessHours()
+        setStartTime(defaultStartTime ?? bh?.open ?? "16:00")
+        setEndTime(defaultEndTime ?? bh?.close ?? "21:00")
+        setTimesEdited(!!(defaultStartTime || defaultEndTime))
         setPositionId("")
         setCount(1)
       }
       setError("")
     }
   }, [open, shift, defaultDate, defaultStartTime, defaultEndTime, fixedUserId])
+
+  // Pri zmene dátumu (nová zmena, časy ešte ručne nemenené) dosynchronizuj časy podľa otváracích hodín daného dňa
+  useEffect(() => {
+    if (!open || isEdit || timesEdited) return
+    const bh = hoursForDate(date)
+    if (bh) { setStartTime(bh.open); setEndTime(bh.close) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date])
 
   function toggleDay(day: number) {
     setSelectedDays((prev) =>
@@ -372,7 +411,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
                 id="startTime"
                 type="time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => { setStartTime(e.target.value); setTimesEdited(true) }}
                 required
               />
             </div>
@@ -382,7 +421,7 @@ export function ShiftDialog({ open, onOpenChange, employees, positions = [], shi
                 id="endTime"
                 type="time"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => { setEndTime(e.target.value); setTimesEdited(true) }}
                 required
               />
             </div>

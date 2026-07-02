@@ -1188,6 +1188,7 @@ export function MonthCalendar({ weeks, monthLabel, prevMonth, nextMonth, initial
             defaultDate={createDate}
             defaultStartTime={createStartTime}
             defaultEndTime={createEndTime}
+            businessHours={businessHours}
           />
         </>
       )}

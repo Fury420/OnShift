@@ -77,17 +77,20 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
         <SidebarGroup className="px-0 py-2">
           <SidebarMenu className="gap-1">
             {employeeNav.map(({ href, label, icon: Icon }) => {
-              const hasBadge =
-                (href === "/replacements" && pendingReplacementCount > 0) ||
-                (href === "/replacements" && user.role === "manager" && pendingLeaveCount > 0)
+              const badgeCount =
+                href === "/replacements"
+                  ? pendingReplacementCount + (user.role === "manager" ? pendingLeaveCount : 0)
+                  : 0
               return (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton asChild isActive={pathname.startsWith(href)} size="lg" className="rounded-lg px-3 min-h-12">
                     <Link href={href} onClick={() => setOpenMobile(false)}>
                       <Icon />
                       <span>{label}</span>
-                      {hasBadge && (
-                        <span className="ml-auto size-2 rounded-full bg-destructive" />
+                      {badgeCount > 0 && (
+                        <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold leading-none text-white">
+                          {badgeCount}
+                        </span>
                       )}
                     </Link>
                   </SidebarMenuButton>
@@ -115,7 +118,9 @@ export function AppSidebar({ user, orgs, activeOrgId, pendingReplacementCount, p
                           <Icon />
                           <span>{label}</span>
                           {isEmployees && pendingLeaveCount > 0 && (
-                            <span className="ml-auto size-2 rounded-full bg-destructive" />
+                            <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold leading-none text-white">
+                              {pendingLeaveCount}
+                            </span>
                           )}
                         </Link>
                       </SidebarMenuButton>

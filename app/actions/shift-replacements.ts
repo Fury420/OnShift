@@ -54,7 +54,7 @@ export async function requestReplacement(shiftId: string, replacementUserId: str
     note: note ?? null,
   })
 
-  const weekUrl = `/schedule?month=${shift.date.slice(0, 7)}&date=${shift.date}`
+  const linkUrl = `/replacements?month=${shift.date.slice(0, 7)}`
   getAdminIds(orgId).then((adminIds) =>
     createNotification({
       organizationId: orgId,
@@ -62,7 +62,7 @@ export async function requestReplacement(shiftId: string, replacementUserId: str
       recipientIds: [replacementUserId, ...adminIds],
       type: "replacement_requested",
       title: `${session.user.name} žiada o zastúpenie zmeny`,
-      linkUrl: weekUrl,
+      linkUrl,
     }),
   ).catch(console.error)
 
@@ -111,7 +111,7 @@ export async function respondToReplacement(id: string, response: "accepted" | "r
   })
 
   const dateStr = shiftDateForLink as string | null
-  const linkUrl = dateStr ? `/schedule?month=${dateStr.slice(0, 7)}&date=${dateStr}` : "/replacements"
+  const linkUrl = dateStr ? `/replacements?month=${dateStr.slice(0, 7)}` : "/replacements"
   if (requestedByUserId) {
     getAdminIds(orgId).then((adminIds) =>
       createNotification({
@@ -171,7 +171,7 @@ export async function adminResolveReplacement(id: string, response: "accepted" |
   })
 
   const dateStr = shiftDateForLink as string | null
-  const linkUrl = dateStr ? `/schedule?month=${dateStr.slice(0, 7)}&date=${dateStr}` : "/replacements"
+  const linkUrl = dateStr ? `/replacements?month=${dateStr.slice(0, 7)}` : "/replacements"
   if (requestedByUserId && replacementUserId) {
     createNotification({
       organizationId: orgId,
